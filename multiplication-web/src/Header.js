@@ -1,11 +1,15 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo from "./assets/logo.png";
 import people from "./assets/people.png";
 import overlay from "./assets/overlay.png";
 
 function Header({ user, onLogout }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Helper to check if current path matches
+  const isActive = (path) => location.pathname === path;
 
   return (
     <header className="header-bg">
@@ -15,7 +19,7 @@ function Header({ user, onLogout }) {
       </div>
       <nav className="header-nav">
         <a
-          className="header-link active"
+          className={`header-link${isActive("/") ? " active" : ""}`}
           href="#"
           onClick={e => {
             e.preventDefault();
@@ -26,7 +30,7 @@ function Header({ user, onLogout }) {
           Dashboard
         </a>
         <a
-          className="header-link"
+          className={`header-link${isActive("/reports") ? " active" : ""}`}
           href="#"
           onClick={e => {
             e.preventDefault();
@@ -37,7 +41,7 @@ function Header({ user, onLogout }) {
           Reports
         </a>
         <a
-          className="header-link"
+          className={`header-link${isActive("/students") ? " active" : ""}`}
           href="#"
           onClick={e => {
             e.preventDefault();

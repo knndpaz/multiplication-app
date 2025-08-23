@@ -2,9 +2,69 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import people from "./assets/people.png";
 import Header from "./Header";
+import circleX from "./assets/circle-x.png";
+import trophy from "./assets/trophy.png";
+import time from "./assets/time.png";
+import timeFill from "./assets/time-fill.png";
+import warning from "./assets/warning.png";
+import insightstone from "./assets/insights.png";
+import cake from "./assets/cake.png";
+import speedo from "./assets/speedo.png";
+import fire from "./assets/fire.png";
 
 function Dashboard({ user, onLogout }) {
   const navigate = useNavigate();
+
+  // Quick Insights data
+  const insights = [
+    {
+      key: "red",
+      icon: circleX,
+      borderColor: "#ff6b6b",
+      bgColor: "#fff6f6",
+      title: "Most Challenging Question",
+      desc: '"What is 7 x 8?" in Level 2',
+      link: "28% success rate",
+    },
+    {
+      key: "green",
+      icon: trophy,
+      borderColor: "#3ecf8e",
+      bgColor: "#f6fff9",
+      title: "Best Performing Level",
+      desc: "Level 1 showing excellent results",
+      link: "87% average score",
+    },
+    {
+      key: "blue",
+      icon: time,
+      borderColor: "#4fd1ff",
+      bgColor: "#f6fcff",
+      title: "Latest Session",
+      desc: "Last group session completed",
+      link: "15 players, 92% completion rate",
+    },
+    {
+      key: "orange",
+      icon: warning,
+      borderColor: "#ffb86b",
+      bgColor: "#fffaf6",
+      title: "Questions Need Review",
+      desc: "Questions with low success rates",
+      link: "4 questions below 40%",
+    },
+    {
+      key: "pink",
+      icon: timeFill,
+      borderColor: "#ff61d2",
+      bgColor: "#fff6fb",
+      title: "Peak Activity Time",
+      desc: "Most sessions conducted at",
+      link: "2:00 - 3:00 PM",
+    },
+  ];
+
+  const gameIcons = [cake, speedo, fire];
 
   return (
     <div className="dashboard-bg">
@@ -14,7 +74,7 @@ function Dashboard({ user, onLogout }) {
           Dashboard
         </div>
         <div className="dashboard-main-row">
-          <div className="dashboard-main-col">
+          <div className="dashboard-main-col equal-height-col">
             <div className="dashboard-welcome card">
               <div>
                 <h1>Hi, {user.name.split(" ")[0]}!</h1>
@@ -31,9 +91,12 @@ function Dashboard({ user, onLogout }) {
               <div className="game-list">
                 {["LEVEL 1", "LEVEL 2", "LEVEL 3"].map((level, i) => (
                   <div className="game-row" key={level}>
-                    <span className={`material-icons game-icon game-icon-${i}`}>{
-                      i === 0 ? "star" : i === 1 ? "speed" : "psychology"
-                    }</span>
+                    <img
+                      src={gameIcons[i]}
+                      alt=""
+                      className={`game-img-icon game-img-icon-${i}`}
+                      style={{ width: 32, height: 32 }}
+                    />
                     <span className="game-level">{level}</span>
                     <button
                       className="game-btn edit"
@@ -48,53 +111,47 @@ function Dashboard({ user, onLogout }) {
               </div>
             </div>
           </div>
-          <div className="dashboard-insights card">
+          <div className="dashboard-insights card equal-height-col">
             <div className="insights-header">
-              <span className="material-icons" style={{ color: "#a259ff", marginRight: 8 }}>show_chart</span>
+              <img src={insightstone} alt="" style={{ width: 32, height: 32, marginRight: 8 }} />
               <b>Quick Insights</b>
               <a href="#" className="insights-link">View all reports <span className="material-icons" style={{ fontSize: 16, verticalAlign: "middle" }}>arrow_forward</span></a>
             </div>
             <div className="insights-list">
-              <div className="insight insight-red">
-                <span className="material-icons">close</span>
-                <div>
-                  <b>Most Challenging Question</b>
-                  <div className="insight-desc">"What is 7 x 8?" in Level 2</div>
-                  <div className="insight-link">28% success rate</div>
+              {insights.map((insight, idx) => (
+                <div
+                  key={insight.key}
+                  className={`insight insight-${insight.key}`}
+                  style={{
+                    borderColor: insight.borderColor,
+                    background: insight.bgColor,
+                  }}
+                >
+                  <div
+                    className="insight-shadow"
+                    style={{
+                      background: insight.borderColor,
+                    }}
+                  />
+                  <img
+                    src={insight.icon}
+                    alt=""
+                    style={{
+                      width: 38,
+                      height: 38,
+                      marginTop: 2,
+                      marginRight: 8,
+                      flexShrink: 0,
+                      zIndex: 1,
+                    }}
+                  />
+                  <div style={{ zIndex: 1 }}>
+                    <b>{insight.title}</b>
+                    <div className="insight-desc">{insight.desc}</div>
+                    <div className="insight-link">{insight.link}</div>
+                  </div>
                 </div>
-              </div>
-              <div className="insight insight-green">
-                <span className="material-icons">emoji_events</span>
-                <div>
-                  <b>Best Performing Level</b>
-                  <div className="insight-desc">Level 1 showing excellent results</div>
-                  <div className="insight-link">87% average score</div>
-                </div>
-              </div>
-              <div className="insight insight-blue">
-                <span className="material-icons">history</span>
-                <div>
-                  <b>Latest Session</b>
-                  <div className="insight-desc">Last group session completed</div>
-                  <div className="insight-link">15 players, 92% completion rate</div>
-                </div>
-              </div>
-              <div className="insight insight-orange">
-                <span className="material-icons">error_outline</span>
-                <div>
-                  <b>Questions Need Review</b>
-                  <div className="insight-desc">Questions with low success rates</div>
-                  <div className="insight-link">4 questions below 40%</div>
-                </div>
-              </div>
-              <div className="insight insight-pink">
-                <span className="material-icons">schedule</span>
-                <div>
-                  <b>Peak Activity Time</b>
-                  <div className="insight-desc">Most sessions conducted at</div>
-                  <div className="insight-link">2:00 - 3:00 PM</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -107,8 +164,8 @@ function Dashboard({ user, onLogout }) {
           padding: 0;
         }
         .dashboard-content {
-          padding: 32px 24px 24px 24px;
-          max-width: 1300px;
+          padding: 32px 2vw 24px 2vw;
+          max-width: 100vw;
           margin: 0 auto;
         }
         .dashboard-breadcrumb {
@@ -122,32 +179,71 @@ function Dashboard({ user, onLogout }) {
           font-family: 'Inter', Arial, sans-serif;
           font-weight: 500;
           letter-spacing: 0.01em;
+          width: 100%;
+          box-sizing: border-box;
         }
         .dashboard-main-row {
           display: flex;
-          gap: 24px;
+          gap: 32px;
+          justify-content: center;
+          align-items: stretch;
+          width: 100%;
+        }
+        .dashboard-main-col,
+        .dashboard-insights {
+          flex: 1 1 0;
+          min-width: 0;
+          max-width: 700px;
         }
         .dashboard-main-col {
-          flex: 1.5;
           display: flex;
           flex-direction: column;
-          gap: 24px;
+          gap: 30px; /* Reduced gap between welcome and games */
+          height: 100%;
         }
-        .dashboard-insights {
-          flex: 1.2;
-          min-width: 340px;
-          max-width: 420px;
+        .equal-height-col {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+        .dashboard-main-row {
+          align-items: stretch;
+        }
+        .dashboard-main-col.equal-height-col {
+          justify-content: stretch;
+        }
+        .dashboard-insights.equal-height-col {
+          justify-content: stretch;
+        }
+        .dashboard-main-col.equal-height-col {
+          height: auto;
+        }
+        .dashboard-insights.equal-height-col {
+          height: auto;
+        }
+        .dashboard-welcome,
+        .dashboard-games {
+          flex: 1 1 0;
+          min-height: 0;
+        }
+        .dashboard-welcome {
+          margin-bottom: 0;
+        }
+        .dashboard-games {
+          margin-bottom: 0;
         }
         .card {
           background: #fff;
           border-radius: 16px;
           box-shadow: 0 4px 24px rgba(0,0,0,0.07);
           padding: 22px 32px;
-          flex: 1;
+          flex: 1 1 0;
           display: flex;
           flex-direction: column;
           position: relative;
           overflow: visible;
+          width: 100%;
+          box-sizing: border-box;
         }
         .dashboard-welcome {
           flex-direction: row;
@@ -252,16 +348,26 @@ function Dashboard({ user, onLogout }) {
           padding: 16px 18px;
           background: #fafbfc;
           border: 1.5px solid #eee;
+          position: relative;
+          overflow: visible;
+        }
+        .insight-shadow {
+          position: absolute;
+          left: -18px;
+          top: 10px;
+          bottom: 10px;
+          width: 10px;
+          border-radius: 8px;
+          z-index: 0;
+          /* background set inline */
+          box-shadow: none;
+          opacity: 1;
         }
         .insight-red { border-color: #ff6b6b; background: #fff6f6; }
         .insight-green { border-color: #3ecf8e; background: #f6fff9; }
         .insight-blue { border-color: #4fd1ff; background: #f6fcff; }
         .insight-orange { border-color: #ffb86b; background: #fffaf6; }
         .insight-pink { border-color: #ff61d2; background: #fff6fb; }
-        .insight .material-icons {
-          font-size: 32px;
-          margin-top: 2px;
-        }
         .insight-desc {
           color: #888;
           font-size: 13px;
@@ -271,17 +377,26 @@ function Dashboard({ user, onLogout }) {
           font-size: 13px;
           margin-top: 2px;
         }
+        .game-img-icon {
+          display: inline-block;
+          vertical-align: middle;
+          margin-right: 6px;
+        }
         @media (max-width: 1100px) {
           .dashboard-main-row {
             flex-direction: column;
+            align-items: stretch;
+            gap: 24px;
           }
-          .dashboard-main-col {
-            flex-direction: column;
-          }
+          .dashboard-main-col,
           .dashboard-insights {
             max-width: 100vw;
             min-width: 0;
-            margin-top: 24px;
+            margin-top: 0;
+            width: 100%;
+          }
+          .dashboard-breadcrumb {
+            max-width: 100vw;
           }
           .dashboard-people-wrapper {
             justify-content: center;
