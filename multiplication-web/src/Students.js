@@ -1,8 +1,98 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Header from "./Header";
 import people from "./assets/people.png";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+
+const db = getFirestore();
+
+function randomPassword() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
 
 function Students({ user, onLogout }) {
+  const [students, setStudents] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState("add"); // "add" or "edit"
+  const [studentForm, setStudentForm] = useState({
+    firstname: "",
+    lastname: "",
+    password: randomPassword(),
+    profilePic: "",
+  });
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+
+  useEffect(() => {
+    async function fetchStudents() {
+      if (!user?.uid) return;
+      const snap = await getDocs(collection(db, "students", user.uid, "list"));
+      const arr = [];
+      snap.forEach(doc => arr.push({ ...doc.data(), id: doc.id }));
+      setStudents(arr);
+    }
+    fetchStudents();
+  }, [user]);
+
+  function openAddModal() {
+    setModalMode("add");
+    setStudentForm({
+      firstname: "",
+      lastname: "",
+      password: randomPassword(),
+      profilePic: "",
+    });
+    setSelectedStudentId(null);
+    setShowModal(true);
+  }
+
+  function openEditModal(student) {
+    setModalMode("edit");
+    setStudentForm({
+      firstname: student.firstname,
+      lastname: student.lastname,
+      password: student.password,
+      profilePic: student.profilePic || "",
+    });
+    setSelectedStudentId(student.id);
+    setShowModal(true);
+  }
+
+  async function handleSaveStudent(e) {
+    e.preventDefault();
+    if (!studentForm.firstname || !studentForm.lastname || !studentForm.password) return;
+    if (modalMode === "add") {
+      await addDoc(collection(db, "students", user.uid, "list"), {
+        ...studentForm,
+        createdAt: new Date().toISOString(),
+      });
+    } else if (modalMode === "edit" && selectedStudentId) {
+      await updateDoc(doc(db, "students", user.uid, "list", selectedStudentId), {
+        ...studentForm,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setShowModal(false);
+    // Refresh list
+    const snap = await getDocs(collection(db, "students", user.uid, "list"));
+    const arr = [];
+    snap.forEach(doc => arr.push({ ...doc.data(), id: doc.id }));
+    setStudents(arr);
+  }
+
+  async function handleDeleteStudent(id) {
+    await deleteDoc(doc(db, "students", user.uid, "list", id));
+    setStudents(students.filter(s => s.id !== id));
+  }
+
+  function handleProfilePicChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      setStudentForm(form => ({ ...form, profilePic: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+  }
+
   return (
     <div className="students-bg">
       <Header user={user} onLogout={onLogout} />
@@ -18,7 +108,7 @@ function Students({ user, onLogout }) {
             <div className="students-title">Student Performance Analytics</div>
           </div>
           <div className="students-title-right">
-            <button className="students-add-btn">Add Student</button>
+            <button className="students-add-btn" onClick={openAddModal}>Add Student</button>
             <div className="students-search">
               <input placeholder="Search Student" />
               <span className="material-icons">search</span>
@@ -27,29 +117,130 @@ function Students({ user, onLogout }) {
         </div>
         <div className="students-table card">
           <div className="students-table-header">
+            <span>Profile</span>
             <span>Name</span>
-            <span>ID</span>
             <span>Password</span>
             <span></span>
           </div>
-          {[1, 2, 3].map(i => (
-            <div className="students-table-row" key={i}>
+          {students.map(student => (
+            <div className="students-table-row" key={student.id}>
               <div className="students-info">
-                <img src={people} alt="" className="students-img" />
-                <span className="students-name">Justin Nabunturan</span>
+                <img src={student.profilePic || people} alt="" className="students-img" />
               </div>
-              <span className="students-id">ID: STU-BNQZPLUS</span>
+              <span className="students-name">{student.firstname} {student.lastname}</span>
               <span className="students-password">
-                ******** <span className="material-icons students-eye">visibility</span>
+                {student.password}
               </span>
               <span className="students-actions">
-                <button className="students-action-btn edit"><span className="material-icons">edit</span></button>
-                <button className="students-action-btn delete"><span className="material-icons">delete</span></button>
+                <button className="students-action-btn edit" onClick={() => openEditModal(student)}><span className="material-icons">edit</span></button>
+                <button className="students-action-btn delete" onClick={() => handleDeleteStudent(student.id)}><span className="material-icons">delete</span></button>
               </span>
             </div>
           ))}
         </div>
       </div>
+      {showModal && (
+        <div className="students-modal-bg">
+          <div className="students-modal">
+            <form onSubmit={handleSaveStudent}>
+              <h2 style={{ marginBottom: 18 }}>{modalMode === "add" ? "Add Student" : "Edit Student"}</h2>
+              <label style={{ marginBottom: 10 }}>
+                Profile Picture<br />
+                <input type="file" accept="image/*" onChange={handleProfilePicChange} />
+                {studentForm.profilePic && (
+                  <img src={studentForm.profilePic} alt="Preview" style={{ width: 48, height: 48, borderRadius: "50%", marginTop: 8 }} />
+                )}
+              </label>
+              <label>
+                First Name<br />
+                <input
+                  className="game-editor-input"
+                  type="text"
+                  value={studentForm.firstname}
+                  onChange={e => setStudentForm(f => ({ ...f, firstname: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Last Name<br />
+                <input
+                  className="game-editor-input"
+                  type="text"
+                  value={studentForm.lastname}
+                  onChange={e => setStudentForm(f => ({ ...f, lastname: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Password<br />
+                <input
+                  className="game-editor-input"
+                  type="text"
+                  value={studentForm.password}
+                  readOnly
+                  style={{ background: "#eee" }}
+                />
+                <button type="button" style={{ marginTop: 6, marginBottom: 10 }} onClick={() => setStudentForm(f => ({ ...f, password: randomPassword() }))}>
+                  Generate New Password
+                </button>
+              </label>
+              <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
+                <button type="button" className="students-add-btn" style={{ background: "#eee", color: "#444" }} onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="students-add-btn">{modalMode === "add" ? "Add" : "Save"}</button>
+              </div>
+            </form>
+          </div>
+          <style>{`
+            .students-modal-bg {
+              position: fixed;
+              top: 0; left: 0; width: 100vw; height: 100vh;
+              background: rgba(0,0,0,0.18);
+              z-index: 9999;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .students-modal {
+              background: #fff;
+              border-radius: 18px;
+              box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+              padding: 32px 38px;
+              min-width: 340px;
+              max-width: 95vw;
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+            }
+            .students-modal label {
+              font-size: 15px;
+              color: #444;
+              margin-bottom: 8px;
+              display: block;
+            }
+            .students-modal input[type="text"] {
+              padding: 10px 12px;
+              border: 1.5px solid #e0e0e0;
+              border-radius: 7px;
+              font-size: 15px;
+              outline: none;
+              margin-top: 4px;
+              width: 100%;
+            }
+            .students-modal input[type="file"] {
+              margin-top: 4px;
+            }
+            .students-modal button {
+              border: none;
+              border-radius: 8px;
+              padding: 10px 22px;
+              font-size: 15px;
+              font-weight: 600;
+              cursor: pointer;
+            }
+          `}</style>
+        </div>
+      )}
       <style>{`
         .students-bg {
           min-height: 100vh;
@@ -145,8 +336,13 @@ function Students({ user, onLogout }) {
           padding: 18px 32px;
           gap: 0;
         }
-        .students-table-header span {
-          flex: 1;
+        .students-table-header span,
+        .students-table-row > div,
+        .students-table-row > span {
+          flex: 1 1 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .students-table-row {
           display: flex;
@@ -162,6 +358,7 @@ function Students({ user, onLogout }) {
           align-items: center;
           gap: 14px;
           flex: 1;
+          justify-content: flex-start;
         }
         .students-img {
           width: 48px;
@@ -171,6 +368,7 @@ function Students({ user, onLogout }) {
           border: 2px solid #fff;
         }
         .students-name {
+          justify-content: flex-start;
           font-weight: 500;
           color: #222;
         }
@@ -180,12 +378,9 @@ function Students({ user, onLogout }) {
           font-size: 13px;
         }
         .students-password {
-          flex: 1;
+          justify-content: center;
           color: #444;
           font-size: 15px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
         }
         .students-eye {
           font-size: 18px;
@@ -193,8 +388,7 @@ function Students({ user, onLogout }) {
           cursor: pointer;
         }
         .students-actions {
-          flex: 1;
-          display: flex;
+          justify-content: center;
           gap: 8px;
         }
         .students-action-btn {

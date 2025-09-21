@@ -11,60 +11,147 @@ import insightstone from "./assets/insights.png";
 import cake from "./assets/cake.png";
 import speedo from "./assets/speedo.png";
 import fire from "./assets/fire.png";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { getSessionAnalytics } from "./analytics"; // Import analytics
+
+const db = getFirestore();
+
+function generateSessionCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 function Dashboard({ user, onLogout }) {
   const navigate = useNavigate();
 
-  // Quick Insights data
-  const insights = [
-    {
-      key: "red",
-      icon: circleX,
-      borderColor: "#ff6b6b",
-      bgColor: "#fff6f6",
-      title: "Most Challenging Question",
-      desc: '"What is 7 x 8?" in Level 2',
-      link: "28% success rate",
-    },
-    {
-      key: "green",
-      icon: trophy,
-      borderColor: "#3ecf8e",
-      bgColor: "#f6fff9",
-      title: "Best Performing Level",
-      desc: "Level 1 showing excellent results",
-      link: "87% average score",
-    },
-    {
-      key: "blue",
-      icon: time,
-      borderColor: "#4fd1ff",
-      bgColor: "#f6fcff",
-      title: "Latest Session",
-      desc: "Last group session completed",
-      link: "15 players, 92% completion rate",
-    },
-    {
-      key: "orange",
-      icon: warning,
-      borderColor: "#ffb86b",
-      bgColor: "#fffaf6",
-      title: "Questions Need Review",
-      desc: "Questions with low success rates",
-      link: "4 questions below 40%",
-    },
-    {
-      key: "pink",
-      icon: timeFill,
-      borderColor: "#ff61d2",
-      bgColor: "#fff6fb",
-      title: "Peak Activity Time",
-      desc: "Most sessions conducted at",
-      link: "2:00 - 3:00 PM",
-    },
-  ];
+  // Analytics state
+  const [analytics, setAnalytics] = React.useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = React.useState(true);
+
+  // Session state
+  const [sessionCode, setSessionCode] = React.useState(null);
+  const [showSessionModal, setShowSessionModal] = React.useState(false);
+  const [playerCount, setPlayerCount] = React.useState(0);
+  const [sessionId, setSessionId] = React.useState(null);
+  const [sessionListener, setSessionListener] = React.useState(null);
+  const [isModalMinimized, setIsModalMinimized] = React.useState(false);
+  const [waitingPlayers, setWaitingPlayers] = React.useState([]);
+
+  // Load analytics on mount
+  React.useEffect(() => {
+    async function loadAnalytics() {
+      setLoadingAnalytics(true);
+      const data = await getSessionAnalytics();
+      setAnalytics(data);
+      setLoadingAnalytics(false);
+    }
+    loadAnalytics();
+  }, []);
+
+  // Generate insights from analytics
+  const insights = React.useMemo(() => {
+    if (!analytics) return [];
+
+    return [
+      {
+        key: "red",
+        icon: circleX,
+        borderColor: "#ff6b6b",
+        bgColor: "#fff6f6",
+        title: "Most Challenging Question",
+        desc: `"${analytics.mostChallengingQuestion.question}" in ${analytics.mostChallengingQuestion.level}`,
+        link: `${analytics.mostChallengingQuestion.rate}% success rate`,
+      },
+      {
+        key: "green",
+        icon: trophy,
+        borderColor: "#3ecf8e",
+        bgColor: "#f6fff9",
+        title: "Best Performing Level",
+        desc: `${analytics.bestPerformingLevel.level} showing excellent results`,
+        link: `${analytics.bestPerformingLevel.average}% average score`,
+      },
+      {
+        key: "blue",
+        icon: time,
+        borderColor: "#4fd1ff",
+        bgColor: "#f6fcff",
+        title: "Latest Session",
+        desc: "Last group session completed",
+        link: `${analytics.latestSession.players} players, ${analytics.latestSession.completion}% completion rate`,
+      },
+      {
+        key: "orange",
+        icon: warning,
+        borderColor: "#ffb86b",
+        bgColor: "#fffaf6",
+        title: "Questions Need Review",
+        desc: "Questions with low success rates",
+        link: `${analytics.questionsNeedReview} questions below 40%`,
+      },
+      {
+        key: "pink",
+        icon: timeFill,
+        borderColor: "#ff61d2",
+        bgColor: "#fff6fb",
+        title: "Peak Activity Time",
+        desc: "Most sessions conducted at",
+        link: analytics.peakActivityTime,
+      },
+    ];
+  }, [analytics]);
 
   const gameIcons = [cake, speedo, fire];
+
+  async function handleGroupPlay(level) {
+    const code = generateSessionCode();
+    const sessionRef = await addDoc(collection(db, "sessions"), {
+      code,
+      level,
+      createdAt: serverTimestamp(),
+      players: [],
+      waitingPlayers: [], // Track players specifically waiting
+      status: "waiting", // waiting -> started -> completed
+      gameStarted: false
+    });
+    setSessionId(sessionRef.id);
+    setSessionCode(code);
+    setShowSessionModal(true);
+    setIsModalMinimized(false);
+
+    // Listen for player count changes
+    if (sessionListener) sessionListener(); // Unsubscribe previous
+    const unsubscribe = onSnapshot(doc(db, "sessions", sessionRef.id), (docSnap) => {
+      const data = docSnap.data();
+      setPlayerCount(data?.players?.length || 0);
+      setWaitingPlayers(data?.waitingPlayers || []);
+    });
+    setSessionListener(() => unsubscribe);
+  }
+
+  const handleStartGame = async () => {
+    if (!sessionId) return;
+
+    try {
+      await updateDoc(doc(db, "sessions", sessionId), {
+        status: "started",
+        gameStarted: true,
+        gameStartedAt: serverTimestamp()
+      });
+      
+      // Close modal after starting
+      setShowSessionModal(false);
+      setIsModalMinimized(false);
+    } catch (error) {
+      console.error("Error starting game:", error);
+    }
+  };
+
+  // Clean up listener on unmount
+  React.useEffect(() => {
+    return () => {
+      if (sessionListener) sessionListener();
+    };
+  }, [sessionListener]);
 
   return (
     <div className="dashboard-bg">
@@ -77,9 +164,9 @@ function Dashboard({ user, onLogout }) {
           <div className="dashboard-main-col equal-height-col">
             <div className="dashboard-welcome card">
               <div>
-                <h1>Hi, {user.name.split(" ")[0]}!</h1>
+                <h1>Hi, {user?.firstname} {user?.lastname}!</h1>
                 <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+                  Monitor your multiplication game sessions and track student progress with real-time analytics and insights.
                 </p>
               </div>
               <div className="dashboard-people-wrapper">
@@ -100,12 +187,22 @@ function Dashboard({ user, onLogout }) {
                     <span className="game-level">{level}</span>
                     <button
                       className="game-btn edit"
-                      onClick={() => navigate("/games/level-1/edit")}
+                      onClick={() => navigate(`/games/${level.toLowerCase().replace(" ", "-")}/edit`)}
                     >
                       <span className="material-icons">edit</span> Edit
                     </button>
-                    <button className="game-btn play"><span className="material-icons">play_arrow</span> Play</button>
-                    <button className="game-btn group"><span className="material-icons">groups</span> Group Play</button>
+                    <button
+                      className="game-btn play"
+                      onClick={() => window.open("http://localhost:8081", "_blank")}
+                    >
+                      <span className="material-icons">play_arrow</span> Play
+                    </button>
+                    <button
+                      className="game-btn group"
+                      onClick={() => handleGroupPlay(level)}
+                    >
+                      <span className="material-icons">groups</span> Group Play
+                    </button>
                   </div>
                 ))}
               </div>
@@ -115,177 +212,218 @@ function Dashboard({ user, onLogout }) {
             <div className="insights-header">
               <img src={insightstone} alt="" style={{ width: 32, height: 32, marginRight: 8 }} />
               <b>Quick Insights</b>
-              <a href="#" className="insights-link">View all reports <span className="material-icons" style={{ fontSize: 16, verticalAlign: "middle" }}>arrow_forward</span></a>
+              <a href="/reports" className="insights-link">View all reports <span className="material-icons" style={{ fontSize: 16, verticalAlign: "middle" }}>arrow_forward</span></a>
             </div>
             <div className="insights-list">
-              {insights.map((insight, idx) => (
-                <div
-                  key={insight.key}
-                  className={`insight insight-${insight.key}`}
-                  style={{
-                    borderColor: insight.borderColor,
-                    background: insight.bgColor,
-                  }}
-                >
-                  <div
-                    className="insight-shadow"
-                    style={{
-                      background: insight.borderColor,
-                    }}
-                  />
-                  <img
-                    src={insight.icon}
-                    alt=""
-                    style={{
-                      width: 38,
-                      height: 38,
-                      marginTop: 2,
-                      marginRight: 8,
-                      flexShrink: 0,
-                      zIndex: 1,
-                    }}
-                  />
-                  <div style={{ zIndex: 1 }}>
-                    <b>{insight.title}</b>
-                    <div className="insight-desc">{insight.desc}</div>
-                    <div className="insight-link">{insight.link}</div>
-                  </div>
+              {loadingAnalytics ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                  Loading analytics...
                 </div>
-              ))}
+              ) : (
+                insights.map((insight, idx) => (
+                  <div
+                    key={insight.key}
+                    className={`insight insight-${insight.key}`}
+                    style={{
+                      borderColor: insight.borderColor,
+                      background: insight.bgColor,
+                    }}
+                  >
+                    <div
+                      className="insight-shadow"
+                      style={{
+                        background: insight.borderColor,
+                      }}
+                    />
+                    <img
+                      src={insight.icon}
+                      alt=""
+                      style={{
+                        width: 38,
+                        height: 38,
+                        marginTop: 2,
+                        marginRight: 8,
+                        flexShrink: 0,
+                        zIndex: 1,
+                      }}
+                    />
+                    <div style={{ zIndex: 1 }}>
+                      <b>{insight.title}</b>
+                      <div className="insight-desc">{insight.desc}</div>
+                      <div className="insight-link">{insight.link}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
+      {/* Session Modal */}
+      {showSessionModal && (
+        <div className="session-modal-bg">
+          <div className={`session-modal ${isModalMinimized ? 'minimized' : ''}`}>
+            {!isModalMinimized ? (
+              <>
+                <div className="session-modal-header">
+                  <h2>Session Started!</h2>
+                  <button 
+                    className="minimize-btn"
+                    onClick={() => setIsModalMinimized(true)}
+                  >
+                    <span className="material-icons">minimize</span>
+                  </button>
+                </div>
+                <div className="session-code">
+                  Code: <span style={{ color: "#4fd1ff" }}>{sessionCode}</span>
+                </div>
+                <div className="session-stats">
+                  <div className="stat">
+                    <span className="stat-label">Players Joined:</span>
+                    <span className="stat-value">{playerCount}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">Waiting Players:</span>
+                    <span className="stat-value">{waitingPlayers.length}</span>
+                  </div>
+                </div>
+                
+                {waitingPlayers.length > 0 && (
+                  <div className="waiting-players-list">
+                    <h4>Players Ready:</h4>
+                    {waitingPlayers.map((player, idx) => (
+                      <div key={idx} className="waiting-player">
+                        {player.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="session-actions">
+                  <button 
+                    className="start-game-btn"
+                    onClick={handleStartGame}
+                    disabled={waitingPlayers.length === 0}
+                  >
+                    <span className="material-icons">play_arrow</span>
+                    START GAME ({waitingPlayers.length} players)
+                  </button>
+                  <button 
+                    className="close-btn"
+                    onClick={() => setShowSessionModal(false)}
+                  >
+                    Close Session
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="minimized-content" onClick={() => setIsModalMinimized(false)}>
+                <div className="minimized-info">
+                  <span className="minimized-code">Code: {sessionCode}</span>
+                  <span className="minimized-count">{waitingPlayers.length} waiting</span>
+                </div>
+                <span className="material-icons">expand_more</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <style>{`
         @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+        
         .dashboard-bg {
           min-height: 100vh;
           background: #EAEAEA;
           padding: 0;
         }
+        
         .dashboard-content {
           padding: 32px 2vw 24px 2vw;
-          max-width: 100vw;
+          max-width: 1400px;
           margin: 0 auto;
         }
-        .dashboard-breadcrumb {
-          margin-bottom: 18px;
-          padding: 12px 18px;
-          font-size: 13px;
-          color: #444;
-          background: #fff;
-          border-radius: 10px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-          font-family: 'Inter', Arial, sans-serif;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          width: 100%;
-          box-sizing: border-box;
-        }
-        .dashboard-main-row {
-          display: flex;
-          gap: 32px;
-          justify-content: center;
-          align-items: stretch;
-          width: 100%;
-        }
-        .dashboard-main-col,
-        .dashboard-insights {
-          flex: 1 1 0;
-          min-width: 0;
-          max-width: 700px;
-        }
-        .dashboard-main-col {
-          display: flex;
-          flex-direction: column;
-          gap: 30px; /* Reduced gap between welcome and games */
-          height: 100%;
-        }
-        .equal-height-col {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-        .dashboard-main-row {
-          align-items: stretch;
-        }
-        .dashboard-main-col.equal-height-col {
-          justify-content: stretch;
-        }
-        .dashboard-insights.equal-height-col {
-          justify-content: stretch;
-        }
-        .dashboard-main-col.equal-height-col {
-          height: auto;
-        }
-        .dashboard-insights.equal-height-col {
-          height: auto;
-        }
-        .dashboard-welcome,
-        .dashboard-games {
-          flex: 1 1 0;
-          min-height: 0;
-        }
-        .dashboard-welcome {
-          margin-bottom: 0;
-        }
-        .dashboard-games {
-          margin-bottom: 0;
-        }
+        
         .card {
           background: #fff;
           border-radius: 16px;
           box-shadow: 0 4px 24px rgba(0,0,0,0.07);
           padding: 22px 32px;
-          flex: 1 1 0;
+          margin-bottom: 18px;
+        }
+        
+        .dashboard-breadcrumb {
+          font-size: 13px;
+          color: #444;
+          border-radius: 10px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+          font-family: 'Inter', Arial, sans-serif;
+          font-weight: 500;
+          padding: 12px 18px;
+        }
+        
+        .dashboard-main-row {
+          display: flex;
+          gap: 24px;
+          align-items: stretch;
+        }
+        
+        .dashboard-main-col {
+          flex: 1;
           display: flex;
           flex-direction: column;
-          position: relative;
-          overflow: visible;
-          width: 100%;
-          box-sizing: border-box;
+          gap: 18px;
         }
+        
+        .dashboard-insights {
+          flex: 1;
+          max-width: 400px;
+        }
+        
         .dashboard-welcome {
-          flex-direction: row;
+          display: flex;
           align-items: center;
           justify-content: space-between;
-          position: relative;
-          overflow: visible;
           min-height: 120px;
-          height: 120px;
-          max-height: 140px;
+          position: relative;
         }
+        
         .dashboard-welcome h1 {
           margin: 0 0 10px 0;
           font-size: 2.2rem;
+          color: #333;
         }
+        
         .dashboard-welcome p {
           margin: 0;
           color: #888;
           font-size: 1rem;
         }
+        
         .dashboard-people-wrapper {
           position: relative;
-          display: flex;
-          align-items: flex-start;
-          height: 120px;
           min-width: 120px;
+          height: 120px;
         }
+        
         .dashboard-people {
-          width: 200px;
+          width: 180px;
           height: auto;
           position: absolute;
-          top: -80px;
-          right: 0;
-          z-index: 2;
-          background: transparent;
+          top: -60px;
+          right: -20px;
         }
+        
+        .dashboard-games h2 {
+          margin: 0 0 18px 0;
+          color: #333;
+        }
+        
         .game-list {
           display: flex;
           flex-direction: column;
-          gap: 18px;
-          margin-top: 18px;
+          gap: 12px;
         }
+        
         .game-row {
           display: flex;
           align-items: center;
@@ -294,40 +432,42 @@ function Dashboard({ user, onLogout }) {
           border-radius: 10px;
           padding: 14px 18px;
         }
-        .game-icon {
-          font-size: 30px;
-        }
-        .game-icon-0 { color: #ffb300; }
-        .game-icon-1 { color: #3ecf8e; }
-        .game-icon-2 { color: #a259ff; }
+        
         .game-level {
           font-weight: 600;
           font-size: 17px;
-          margin-right: 18px;
+          flex: 1;
         }
+        
         .game-btn {
           border: none;
           border-radius: 7px;
-          padding: 7px 16px;
-          font-size: 15px;
+          padding: 7px 14px;
+          font-size: 14px;
           font-weight: 500;
-          margin-right: 8px;
+          margin-left: 8px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           cursor: pointer;
           transition: background 0.2s;
         }
+        
         .game-btn.edit { background: #ffb86b; color: #fff; }
         .game-btn.play { background: #3ecf8e; color: #fff; }
         .game-btn.group { background: #4fd1ff; color: #fff; }
-        .game-btn:last-child { margin-right: 0; }
+        
+        .game-btn:hover {
+          opacity: 0.9;
+        }
+        
         .insights-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 18px;
         }
+        
         .insights-link {
           color: #888;
           font-size: 13px;
@@ -335,101 +475,254 @@ function Dashboard({ user, onLogout }) {
           display: flex;
           align-items: center;
         }
+        
         .insights-list {
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
+        
         .insight {
           display: flex;
           align-items: flex-start;
           gap: 16px;
           border-radius: 12px;
           padding: 16px 18px;
-          background: #fafbfc;
           border: 1.5px solid #eee;
           position: relative;
-          overflow: visible;
         }
+        
         .insight-shadow {
           position: absolute;
-          left: -18px;
-          top: 10px;
-          bottom: 10px;
-          width: 10px;
-          border-radius: 8px;
-          z-index: 0;
-          /* background set inline */
-          box-shadow: none;
-          opacity: 1;
+          left: -2px;
+          top: 8px;
+          bottom: 8px;
+          width: 6px;
+          border-radius: 3px;
         }
-        .insight-red { border-color: #ff6b6b; background: #fff6f6; }
-        .insight-green { border-color: #3ecf8e; background: #f6fff9; }
-        .insight-blue { border-color: #4fd1ff; background: #f6fcff; }
-        .insight-orange { border-color: #ffb86b; background: #fffaf6; }
-        .insight-pink { border-color: #ff61d2; background: #fff6fb; }
+        
+        .insight b {
+          display: block;
+          margin-bottom: 4px;
+          color: #333;
+        }
+        
         .insight-desc {
-          color: #888;
+          color: #666;
           font-size: 13px;
+          margin-bottom: 2px;
         }
+        
         .insight-link {
-          color: #a259ff;
+          color: #4fd1ff;
           font-size: 13px;
-          margin-top: 2px;
+          font-weight: 500;
         }
-        .game-img-icon {
-          display: inline-block;
-          vertical-align: middle;
-          margin-right: 6px;
+        
+        /* Session Modal Styles */
+        .session-modal-bg {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(0,0,0,0.5);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        @media (max-width: 1100px) {
+        
+        .session-modal {
+          background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+          padding: 32px;
+          min-width: 450px;
+          max-width: 500px;
+          transition: all 0.3s ease;
+        }
+        
+        .session-modal.minimized {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          top: auto;
+          left: auto;
+          transform: none;
+          min-width: 280px;
+          padding: 16px 20px;
+          cursor: pointer;
+        }
+        
+        .session-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        
+        .session-modal-header h2 {
+          margin: 0;
+          color: #333;
+        }
+        
+        .minimize-btn {
+          background: #f0f0f0;
+          border: none;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #666;
+        }
+        
+        .minimize-btn:hover {
+          background: #e0e0e0;
+        }
+        
+        .session-code {
+          font-size: 24px;
+          font-weight: 700;
+          text-align: center;
+          margin: 20px 0;
+        }
+        
+        .session-stats {
+          display: flex;
+          gap: 20px;
+          margin: 20px 0;
+        }
+        
+        .stat {
+          flex: 1;
+          text-align: center;
+          padding: 12px;
+          background: #f8f9fa;
+          border-radius: 8px;
+        }
+        
+        .stat-label {
+          display: block;
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 4px;
+        }
+        
+        .stat-value {
+          font-size: 18px;
+          font-weight: bold;
+          color: #333;
+        }
+        
+        .waiting-players-list {
+          margin: 20px 0;
+          max-height: 120px;
+          overflow-y: auto;
+        }
+        
+        .waiting-players-list h4 {
+          margin: 0 0 8px 0;
+          color: #333;
+          font-size: 14px;
+        }
+        
+        .waiting-player {
+          padding: 6px 12px;
+          background: #e8f5e8;
+          border-radius: 6px;
+          margin-bottom: 4px;
+          color: #2d5a2d;
+          font-size: 14px;
+        }
+        
+        .session-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        .start-game-btn {
+          background: #19d419;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 12px 20px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+        
+        .start-game-btn:hover:not(:disabled) {
+          background: #17c717;
+        }
+        
+        .start-game-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+        }
+        
+        .close-btn {
+          background: #f0f0f0;
+          color: #666;
+          border: none;
+          border-radius: 8px;
+          padding: 8px 20px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+        
+        .close-btn:hover {
+          background: #e0e0e0;
+        }
+        
+        .minimized-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+        
+        .minimized-info {
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .minimized-code {
+          font-weight: bold;
+          color: #4fd1ff;
+          font-size: 14px;
+        }
+        
+        .minimized-count {
+          font-size: 12px;
+          color: #666;
+        }
+        
+        @media (max-width: 768px) {
           .dashboard-main-row {
             flex-direction: column;
-            align-items: stretch;
-            gap: 24px;
           }
-          .dashboard-main-col,
+          
           .dashboard-insights {
-            max-width: 100vw;
-            min-width: 0;
-            margin-top: 0;
-            width: 100%;
+            max-width: none;
           }
-          .dashboard-breadcrumb {
-            max-width: 100vw;
-          }
-          .dashboard-people-wrapper {
-            justify-content: center;
-            min-width: 0;
-            height: 90px;
-          }
-          .dashboard-people {
-            width: 90px;
-            top: -28px;
-          }
-        }
-        @media (max-width: 700px) {
-          .dashboard-content {
-            padding: 10px 2vw;
-          }
-          .card {
-            padding: 16px 8px;
-          }
-          .dashboard-breadcrumb {
-            padding: 8px 10px;
-            font-size: 12px;
-          }
-          .dashboard-people-wrapper {
-            height: 60px;
-          }
-          .dashboard-people {
-            width: 60px;
-            top: -18px;
-          }
+          
           .dashboard-welcome {
-            min-height: 70px;
-            height: 70px;
-            max-height: 90px;
+            flex-direction: column;
+            text-align: center;
+            min-height: auto;
+          }
+          
+          .dashboard-people-wrapper {
+            margin-top: 20px;
           }
         }
       `}</style>

@@ -1,43 +1,58 @@
 import React, { useState } from "react";
-import { auth } from "./firebase"; // Import after it's exported in firebase.js
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { auth } from "./firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
 import logo from "./assets/logo.png";
 import overlay from "./assets/overlay.png";
+import { useNavigate } from "react-router-dom";
 
 const db = getFirestore();
 
-function Login({ onLogin }) {
+function Signup({ onSignup }) {
+  const [firstname, setFirstname] = useState("");
+  const [lastname, setLastname] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setSuccess("");
+    if (!firstname || !lastname || !username || !email || !password || !confirmPassword) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
       const user = result.user;
-      // Fetch extra info from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      let profile = {
-        firstname: "",
-        lastname: "",
-        username: "",
-        email: user.email,
+      // Save extra info to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        firstname,
+        lastname,
+        username,
+        email,
+      });
+      setSuccess("Account created! You can now log in.");
+      if (onSignup) onSignup({
+        firstname,
+        lastname,
+        username,
+        email,
         uid: user.uid,
-      };
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        profile.firstname = data.firstname;
-        profile.lastname = data.lastname;
-        profile.username = data.username;
-      }
-      onLogin(profile);
+      });
+      // Optionally, navigate to dashboard
+      // navigate("/");
     } catch (err) {
-      setError(err.message); // Show the actual error from Firebase
+      setError(err.message || "Signup failed");
     }
   }
 
@@ -51,16 +66,43 @@ function Login({ onLogin }) {
         <div className="login-right">
           <form className="login-form" autoComplete="off" onSubmit={handleSubmit}>
             <label>
-              <span>Enter Email/Username</span>
+              <span>First Name</span>
               <input
                 type="text"
-                placeholder="Enter Email/Username"
+                placeholder="Enter First Name"
+                value={firstname}
+                onChange={e => setFirstname(e.target.value)}
+              />
+            </label>
+            <label>
+              <span>Last Name</span>
+              <input
+                type="text"
+                placeholder="Enter Last Name"
+                value={lastname}
+                onChange={e => setLastname(e.target.value)}
+              />
+            </label>
+            <label>
+              <span>Username</span>
+              <input
+                type="text"
+                placeholder="Enter Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+              />
+            </label>
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                placeholder="Enter Email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
               />
             </label>
             <label>
-              <span>Enter Password</span>
+              <span>Password</span>
               <input
                 type="password"
                 placeholder="Enter Password"
@@ -68,23 +110,33 @@ function Login({ onLogin }) {
                 onChange={e => setPassword(e.target.value)}
               />
             </label>
+            <label>
+              <span>Confirm Password</span>
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+            </label>
             {error && <div style={{ color: "red", fontSize: 13 }}>{error}</div>}
+            {success && <div style={{ color: "green", fontSize: 13 }}>{success}</div>}
             <div className="login-signup">
               <span>
-                Don't have an account yet?{" "}
+                Already have an account?{" "}
                 <a
                   href="#"
                   onClick={e => {
                     e.preventDefault();
-                    navigate("/signup");
+                    navigate("/");
                   }}
                 >
-                  Sign Up
+                  Login
                 </a>
               </span>
             </div>
             <button type="submit" className="login-btn">
-              <span style={{ marginRight: 8 }}>⮞</span> LOGIN
+              <span style={{ marginRight: 8 }}>⮞</span> SIGN UP
             </button>
           </form>
         </div>
@@ -209,4 +261,4 @@ function Login({ onLogin }) {
   );
 }
 
-export default Login;
+export default Signup;

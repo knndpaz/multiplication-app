@@ -1,15 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { db } from "../firebase";
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 
-const question = "If Prince Umpad has 6 essays, how many essays do Prince Umpad has?";
-const options = [
-  { key: 'A', value: 16, color: '#fbbf24' },
-  { key: 'B', value: 50, color: '#f472b6' },
-  { key: 'C', value: 19, color: '#f87171' },
-  { key: 'D', value: 55, color: '#67e8f9' },
-];
-const correctIndex = 1; // index for "B. 50"
 const quizPlayers = [
   require('../assets/quizplayer1.png'),
   require('../assets/quizplayer2.png'),
@@ -17,35 +11,274 @@ const quizPlayers = [
   require('../assets/quizplayer4.png'),
 ];
 
-export default function QuizScreen({ navigation }) {
+export default function QuizScreen({ route, navigation }) {
+  const { sessionId, studentId, studentName, selectedCharacter } = route.params;
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showCheck, setShowCheck] = useState(false);
-  const [timer, setTimer] = useState(50);
+  const [showWrong, setShowWrong] = useState(false);
+  const [textAnswer, setTextAnswer] = useState('');
+  const [score, setScore] = useState(0);
+  const [startTime] = useState(Date.now());
+  const [questionStartTimes, setQuestionStartTimes] = useState({});
+  const [questionResults, setQuestionResults] = useState([]);
+  const TIMER_DURATION = 50;
+  const [timer, setTimer] = useState(TIMER_DURATION);
   const intervalRef = useRef();
+  const timeoutRef = useRef();
   const screenWidth = Dimensions.get('window').width;
 
+  // Track question start time
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setTimer(t => t > 0 ? t - 1 : 0);
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
+    setQuestionStartTimes(prev => ({
+      ...prev,
+      [currentIdx]: Date.now()
+    }));
+  }, [currentIdx]);
+
+  // Function to save score and navigate to ranking
+  const finishQuiz = async () => {
+    try {
+      const endTime = Date.now();
+      const totalTime = endTime - startTime;
+      
+      const sessionRef = doc(db, "sessions", sessionId);
+      const sessionSnap = await getDoc(sessionRef);
+      const sessionData = sessionSnap.data();
+      
+      // Calculate detailed analytics
+      const playerResult = {
+        studentId,
+        name: studentName,
+        score,
+        totalQuestions: questions.length,
+        correctAnswers: score,
+        incorrectAnswers: questions.length - score,
+        accuracy: (score / questions.length) * 100,
+        totalTime,
+        averageTimePerQuestion: totalTime / questions.length,
+        finishedAt: endTime,
+        questionResults: questionResults,
+        level: sessionData.level
+      };
+
+      // Remove existing score for this student
+      const currentScores = sessionData?.scores || [];
+      const filteredScores = currentScores.filter(s => s.studentId !== studentId);
+      
+      // Update session with comprehensive data
+      await updateDoc(sessionRef, {
+        scores: [...filteredScores, playerResult],
+        lastUpdated: endTime
+      });
+
+      navigation.navigate('RankingScreen', { 
+        sessionId, 
+        studentId,
+        studentName 
+      });
+    } catch (error) {
+      console.error("Error saving session data:", error);
+      navigation.navigate('RankingScreen', { 
+        sessionId, 
+        studentId,
+        studentName 
+      });
+    }
+  };
+
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
+  // Fetch questions
   useEffect(() => {
-    if (selected === correctIndex) {
-      setShowCheck(true);
-      setTimeout(() => {
-        navigation.navigate('RankingScreen');
-      }, 1200); // Show check for 1.2s before redirect
-    } else {
-      setShowCheck(false);
+    async function fetchQuestions() {
+      try {
+        setLoading(true);
+        const sessionDoc = await getDoc(doc(db, "sessions", sessionId));
+        if (!sessionDoc.exists()) {
+          console.error("Session not found!");
+          return;
+        }
+
+        const sessionData = sessionDoc.data();
+        const level = sessionData.level;
+        const levelKey = level?.toLowerCase().replace(' ', '-');
+        const teacherUid = "rTPhhHNRT5gMWFsZWdrtmpUVhWd2";
+
+        if (!levelKey) {
+          console.error("Level key is empty!");
+          return;
+        }
+
+        const snap = await getDocs(collection(db, "questions", teacherUid, levelKey));
+        const arr = [];
+        snap.forEach(doc => {
+          const data = doc.data();
+          const options = Array.isArray(data.options) ? data.options : [];
+          arr.push({
+            ...data,
+            id: doc.id,
+            options: options.map((opt, idx) => ({
+              key: String.fromCharCode(65 + idx),
+              value: opt || "",
+              color: "#eee"
+            }))
+          });
+        });
+        setQuestions(arr);
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [selected]);
+    fetchQuestions();
+  }, [sessionId]);
 
-  // For demo, always use quizplayer1.png
-  const characterImg = quizPlayers[0];
+  // Track question results
+  const recordQuestionResult = (questionId, question, isCorrect, timeTaken) => {
+    const result = {
+      questionId,
+      question,
+      isCorrect,
+      timeTaken,
+      answeredAt: Date.now()
+    };
+    setQuestionResults(prev => [...prev, result]);
+  };
 
-  // Timer bar width calculation
+  // Handle text answer submission
+  const handleSubmitAnswer = () => {
+    const currentQuestion = questions[currentIdx];
+    const timeTaken = Date.now() - (questionStartTimes[currentIdx] || Date.now());
+    
+    if (currentQuestion && currentQuestion.type === "singleAnswer") {
+      clearInterval(intervalRef.current);
+      const isCorrect = String(textAnswer).trim() === String(currentQuestion.answer).trim();
+      
+      // Record question result
+      recordQuestionResult(currentQuestion.id, currentQuestion.question, isCorrect, timeTaken);
+      
+      if (isCorrect) {
+        setScore(prev => prev + 1);
+        setShowCheck(true);
+      } else {
+        setShowWrong(true);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        setShowCheck(false);
+        setShowWrong(false);
+        setTextAnswer('');
+        if (currentIdx < questions.length - 1) {
+          setCurrentIdx(idx => idx + 1);
+        } else {
+          finishQuiz();
+        }
+      }, 1200);
+    }
+  };
+
+  // SINGLE Timer effect - reset on question change and handle countdown
+  useEffect(() => {
+    console.log("Timer reset for question:", currentIdx);
+    setTimer(TIMER_DURATION);
+    
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(() => {
+      setTimer(t => {
+        if (t <= 1) {
+          console.log("Timer expired!");
+          clearInterval(intervalRef.current);
+          setShowWrong(true);
+          
+          timeoutRef.current = setTimeout(() => {
+            setShowWrong(false);
+            setSelected(null);
+            setTextAnswer('');
+            if (currentIdx < questions.length - 1) {
+              setCurrentIdx(idx => idx + 1);
+            } else {
+              finishQuiz();
+            }
+          }, 1200);
+          
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [currentIdx, questions.length]); // Remove 'score' from dependencies
+
+  // Handle multiple choice selection
+  useEffect(() => {
+    if (selected !== null && questions.length > 0) {
+      console.log("Multiple choice selected:", selected);
+      clearInterval(intervalRef.current); // Stop timer
+      const correctIdx = questions[currentIdx]?.correct;
+      const currentQuestion = questions[currentIdx];
+      const timeTaken = Date.now() - (questionStartTimes[currentIdx] || Date.now());
+      const isCorrect = selected === correctIdx;
+      
+      // Record question result
+      recordQuestionResult(currentQuestion.id, currentQuestion.question, isCorrect, timeTaken);
+      
+      if (isCorrect) {
+        setScore(prev => prev + 1);
+        setShowCheck(true);
+      } else {
+        setShowWrong(true);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        console.log("Timeout completed, moving to next question...");
+        setShowCheck(false);
+        setShowWrong(false);
+        setSelected(null);
+        if (currentIdx < questions.length - 1) {
+          console.log("Moving to next question:", currentIdx + 1);
+          setCurrentIdx(idx => idx + 1);
+        } else {
+          console.log("Quiz finished!");
+          finishQuiz();
+        }
+      }, 1200);
+    }
+  }, [selected, questions, currentIdx]); // Remove score dependency here too
+
+  if (loading || !questions.length) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: "#222", fontSize: 22, marginTop: 100, textAlign: "center" }}>
+          Loading questions...
+        </Text>
+      </View>
+    );
+  }
+
+  const q = questions[currentIdx];
+  if (!q) {
+    console.log("No question found for index:", currentIdx);
+    return null;
+  }
+
+  console.log("Current question:", currentIdx, q.question, "Type:", q.type);
+
+  const characterImg = quizPlayers[selectedCharacter || 0]; // Use selected character or default to 0
   const timerBarMaxWidth = screenWidth - 40;
   const timerBarWidth = (timer / 50) * timerBarMaxWidth;
 
@@ -67,11 +300,11 @@ export default function QuizScreen({ navigation }) {
         style={styles.smallLogo}
         resizeMode="contain"
       />
-      {/* Question Card */}
+      
       <View style={styles.quizBox}>
-        <Text style={styles.questionText}>{question}</Text>
+        <Text style={styles.questionText}>{q.question}</Text>
       </View>
-      {/* Character above Timer Bar */}
+      
       <View style={styles.characterTimerStack}>
         <Image
           source={characterImg}
@@ -87,29 +320,61 @@ export default function QuizScreen({ navigation }) {
           </View>
         </View>
       </View>
-      {/* Options */}
-      <View style={styles.optionsRow}>
-        {options.map((opt, idx) => (
+      
+      {q.type === "singleAnswer" ? (
+        <View style={styles.answerInputContainer}>
+          <TextInput
+            style={styles.answerInput}
+            value={textAnswer}
+            onChangeText={setTextAnswer}
+            keyboardType="numeric"
+            placeholder="Type your answer..."
+            placeholderTextColor="#999"
+          />
           <TouchableOpacity
-            key={opt.key}
-            style={[
-              styles.optionBtn,
-              { backgroundColor: opt.color },
-              selected === idx && styles.selectedBtn,
-            ]}
-            onPress={() => setSelected(idx)}
-            activeOpacity={0.85}
-            disabled={showCheck}
+            style={styles.submitButton}
+            onPress={handleSubmitAnswer}
+            disabled={showCheck || showWrong}
           >
-            <Text style={styles.optionText}>{`${opt.key}. ${opt.value}`}</Text>
+            <Text style={styles.submitButtonText}>Submit</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-      {/* Full screen check mark */}
+        </View>
+      ) : (
+        <View style={styles.optionsRow}>
+          {(q.options || []).map((opt, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={[
+                styles.optionBtn,
+                { backgroundColor: opt.color || "#eee" },
+                selected === idx && styles.selectedBtn,
+              ]}
+              onPress={() => setSelected(idx)}
+              activeOpacity={0.85}
+              disabled={showCheck || showWrong}
+            >
+              <Text style={styles.optionText}>
+                {`${opt.key}. ${opt.value}`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      
       {showCheck && (
         <View style={styles.fullScreenCheck}>
           <Image
             source={require('../assets/correct.png')}
+            style={styles.fullCheckImg}
+            resizeMode="contain"
+          />
+        </View>
+      )}
+      
+      {showWrong && (
+        <View style={styles.fullScreenCheck}>
+          <Image
+            source={require('../assets/wrong.png')}
             style={styles.fullCheckImg}
             resizeMode="contain"
           />
@@ -255,5 +520,46 @@ const styles = StyleSheet.create({
     width: '80%',
     height: '80%',
     opacity: 0.8,
+  },
+  answerInputContainer: {
+    marginTop: 18,
+    width: '90%',
+    alignSelf: 'center',
+    alignItems: 'center',
+  },
+  answerInput: {
+    width: '100%',
+    height: 54,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    fontSize: 24,
+    fontFamily: 'LuckiestGuy',
+    marginBottom: 12,
+    textAlign: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  submitButton: {
+    width: '50%',
+    height: 54,
+    backgroundColor: '#4fd1ff',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontFamily: 'LuckiestGuy',
+    fontWeight: 'bold',
   },
 });

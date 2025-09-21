@@ -5,16 +5,21 @@ import Dashboard from "./Dashboard";
 import Reports from "./Reports";
 import Students from "./Students";
 import GameEditor from "./GameEditor";
+import Signup from "./Signup";
+import StudentAnalytics from "./StudentAnalytics";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [user, setUser] = useState({
-    name: "Justine Nabunturan",
-    email: "justine@email.com",
-  });
+  const [user, setUser] = useState(null);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setLoggedIn(true);
+  };
 
   const handleLogout = () => {
-    // Your logout logic here
+    setUser(null);
+    setLoggedIn(false);
   };
 
   return (
@@ -26,9 +31,13 @@ function App() {
             loggedIn ? (
               <Dashboard user={user} onLogout={handleLogout} />
             ) : (
-              <Login onLogin={() => setLoggedIn(true)} />
+              <Login onLogin={handleLogin} />
             )
           }
+        />
+        <Route
+          path="/signup"
+          element={<Signup onSignup={handleLogin} />}
         />
         <Route
           path="/reports"
@@ -39,8 +48,12 @@ function App() {
           element={<Students user={user} onLogout={handleLogout} />}
         />
         <Route
-          path="/games/level-1/edit"
+          path="/games/:level/edit"
           element={<GameEditor user={user} onLogout={handleLogout} />}
+        />
+        <Route
+          path="/student/:studentId"
+          element={<StudentAnalytics user={user} onLogout={handleLogout} />}
         />
       </Routes>
     </Router>

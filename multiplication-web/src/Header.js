@@ -54,8 +54,10 @@ function Header({ user, onLogout }) {
       </nav>
       <div className="header-user">
         <div className="header-user-info">
-          <div className="header-user-name">{user.name}</div>
-          <div className="header-user-email">{user.email}</div>
+          <div className="header-user-name">
+            {user?.firstname} {user?.lastname}
+          </div>
+          <div className="header-user-email">{user?.email}</div>
         </div>
         <img src={people} alt="User" className="header-user-img" />
         <button className="header-logout" onClick={onLogout}>

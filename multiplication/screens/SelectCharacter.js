@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Font from 'expo-font';
 
 const characters = [
   require('../assets/player1.png'),
@@ -10,23 +9,22 @@ const characters = [
   require('../assets/player4.png'),
 ];
 
-export default function SelectCharacter({ navigation }) {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [selected, setSelected] = useState(null);
+export default function SelectCharacter({ navigation, route }) {
+  const [selected, setSelected] = useState(0); // Default to first character
 
-  useEffect(() => {
-    Font.loadAsync({
-      LuckiestGuy: require('../assets/LuckiestGuy-Regular.ttf'),
-    }).then(() => setFontsLoaded(true));
-  }, []);
+  // Get route params
+  const { sessionId, level, playerId, code } = route.params || {};
 
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#4fd1ff" />
-      </View>
-    );
-  }
+  const handleContinue = () => {
+    // Pass selected character to NameScreen
+    navigation.navigate('NameScreen', {
+      sessionId,
+      level,
+      playerId,
+      code,
+      selectedCharacter: selected
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -76,24 +74,26 @@ export default function SelectCharacter({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
-      {/* Play button gradient */}
-      <TouchableOpacity
-        style={styles.playButton}
-        onPress={() => navigation?.navigate('NameScreen')}
-      >
-        <LinearGradient
-          colors={['#f97316', '#facc15']}
-          start={{ x: 0, y: 1 }}
-          end={{ x: 0, y: 0 }}
-          style={styles.playButtonGradient}
+      {/* Continue button - only show if character is selected */}
+      {selected !== null && (
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={handleContinue}
         >
-          <Image
-            source={require('../assets/next.png')}
-            style={styles.playIcon}
-            resizeMode="contain"
-          />
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={['#f97316', '#facc15']}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
+            style={styles.playButtonGradient}
+          >
+            <Image
+              source={require('../assets/next.png')}
+              style={styles.playIcon}
+              resizeMode="contain"
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   headerText: {
     color: '#fff',
     fontSize: 22,
-    fontFamily: 'LuckiestGuy',
+    fontWeight: 'bold',
     letterSpacing: 1,
   },
   grid: {
@@ -153,16 +153,21 @@ const styles = StyleSheet.create({
     height: 160,
     margin: 12,
     borderRadius: 36,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: 'transparent',
   },
   characterSelected: {
     borderColor: '#facc15',
     backgroundColor: '#fffde7',
+    elevation: 6,
+    shadowColor: '#facc15',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   characterImg: {
     width: 140,
@@ -173,6 +178,11 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     marginBottom: 32,
     overflow: 'hidden',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   playButtonGradient: {
     padding: 18,
