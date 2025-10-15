@@ -11,8 +11,13 @@ import insightstone from "./assets/insights.png";
 import cake from "./assets/cake.png";
 import speedo from "./assets/speedo.png";
 import fire from "./assets/fire.png";
-import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { getSessionAnalytics } from "./analytics"; // Import analytics
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getSessionAnalytics } from "./analytics";
 
 const db = getFirestore();
 
@@ -20,21 +25,12 @@ function generateSessionCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function Dashboard({ user, onLogout }) {
+function Dashboard({ user, onLogout, onStartSession }) {
   const navigate = useNavigate();
 
   // Analytics state
   const [analytics, setAnalytics] = React.useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(true);
-
-  // Session state
-  const [sessionCode, setSessionCode] = React.useState(null);
-  const [showSessionModal, setShowSessionModal] = React.useState(false);
-  const [playerCount, setPlayerCount] = React.useState(0);
-  const [sessionId, setSessionId] = React.useState(null);
-  const [sessionListener, setSessionListener] = React.useState(null);
-  const [isModalMinimized, setIsModalMinimized] = React.useState(false);
-  const [waitingPlayers, setWaitingPlayers] = React.useState([]);
 
   // Load analytics on mount
   React.useEffect(() => {
@@ -109,64 +105,30 @@ function Dashboard({ user, onLogout }) {
       level,
       createdAt: serverTimestamp(),
       players: [],
-      waitingPlayers: [], // Track players specifically waiting
-      status: "waiting", // waiting -> started -> completed
-      gameStarted: false
+      waitingPlayers: [],
+      status: "waiting",
+      gameStarted: false,
     });
-    setSessionId(sessionRef.id);
-    setSessionCode(code);
-    setShowSessionModal(true);
-    setIsModalMinimized(false);
 
-    // Listen for player count changes
-    if (sessionListener) sessionListener(); // Unsubscribe previous
-    const unsubscribe = onSnapshot(doc(db, "sessions", sessionRef.id), (docSnap) => {
-      const data = docSnap.data();
-      setPlayerCount(data?.players?.length || 0);
-      setWaitingPlayers(data?.waitingPlayers || []);
-    });
-    setSessionListener(() => unsubscribe);
+    // Call the parent function to start session at App level
+    onStartSession(code, sessionRef.id);
   }
-
-  const handleStartGame = async () => {
-    if (!sessionId) return;
-
-    try {
-      await updateDoc(doc(db, "sessions", sessionId), {
-        status: "started",
-        gameStarted: true,
-        gameStartedAt: serverTimestamp()
-      });
-      
-      // Close modal after starting
-      setShowSessionModal(false);
-      setIsModalMinimized(false);
-    } catch (error) {
-      console.error("Error starting game:", error);
-    }
-  };
-
-  // Clean up listener on unmount
-  React.useEffect(() => {
-    return () => {
-      if (sessionListener) sessionListener();
-    };
-  }, [sessionListener]);
 
   return (
     <div className="dashboard-bg">
       <Header user={user} onLogout={onLogout} />
       <div className="dashboard-content">
-        <div className="dashboard-breadcrumb card">
-          Dashboard
-        </div>
+        <div className="dashboard-breadcrumb card">Dashboard</div>
         <div className="dashboard-main-row">
           <div className="dashboard-main-col equal-height-col">
             <div className="dashboard-welcome card">
               <div>
-                <h1>Hi, {user?.firstname} {user?.lastname}!</h1>
+                <h1>
+                  Hi, {user?.firstname} {user?.lastname}!
+                </h1>
                 <p>
-                  Monitor your multiplication game sessions and track student progress with real-time analytics and insights.
+                  Monitor your multiplication game sessions and track student
+                  progress with real-time analytics and insights.
                 </p>
               </div>
               <div className="dashboard-people-wrapper">
@@ -187,13 +149,19 @@ function Dashboard({ user, onLogout }) {
                     <span className="game-level">{level}</span>
                     <button
                       className="game-btn edit"
-                      onClick={() => navigate(`/games/${level.toLowerCase().replace(" ", "-")}/edit`)}
+                      onClick={() =>
+                        navigate(
+                          `/games/${level.toLowerCase().replace(" ", "-")}/edit`
+                        )
+                      }
                     >
                       <span className="material-icons">edit</span> Edit
                     </button>
                     <button
                       className="game-btn play"
-                      onClick={() => window.open("http://localhost:8081", "_blank")}
+                      onClick={() =>
+                        window.open("http://localhost:8081", "_blank")
+                      }
                     >
                       <span className="material-icons">play_arrow</span> Play
                     </button>
@@ -210,13 +178,31 @@ function Dashboard({ user, onLogout }) {
           </div>
           <div className="dashboard-insights card equal-height-col">
             <div className="insights-header">
-              <img src={insightstone} alt="" style={{ width: 32, height: 32, marginRight: 8 }} />
+              <img
+                src={insightstone}
+                alt=""
+                style={{ width: 32, height: 32, marginRight: 8 }}
+              />
               <b>Quick Insights</b>
-              <a href="/reports" className="insights-link">View all reports <span className="material-icons" style={{ fontSize: 16, verticalAlign: "middle" }}>arrow_forward</span></a>
+              <a href="/reports" className="insights-link">
+                View all reports{" "}
+                <span
+                  className="material-icons"
+                  style={{ fontSize: 16, verticalAlign: "middle" }}
+                >
+                  arrow_forward
+                </span>
+              </a>
             </div>
             <div className="insights-list">
               {loadingAnalytics ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px",
+                    color: "#888",
+                  }}
+                >
                   Loading analytics...
                 </div>
               ) : (
@@ -259,75 +245,6 @@ function Dashboard({ user, onLogout }) {
           </div>
         </div>
       </div>
-      {/* Session Modal */}
-      {showSessionModal && (
-        <div className="session-modal-bg">
-          <div className={`session-modal ${isModalMinimized ? 'minimized' : ''}`}>
-            {!isModalMinimized ? (
-              <>
-                <div className="session-modal-header">
-                  <h2>Session Started!</h2>
-                  <button 
-                    className="minimize-btn"
-                    onClick={() => setIsModalMinimized(true)}
-                  >
-                    <span className="material-icons">minimize</span>
-                  </button>
-                </div>
-                <div className="session-code">
-                  Code: <span style={{ color: "#4fd1ff" }}>{sessionCode}</span>
-                </div>
-                <div className="session-stats">
-                  <div className="stat">
-                    <span className="stat-label">Players Joined:</span>
-                    <span className="stat-value">{playerCount}</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-label">Waiting Players:</span>
-                    <span className="stat-value">{waitingPlayers.length}</span>
-                  </div>
-                </div>
-                
-                {waitingPlayers.length > 0 && (
-                  <div className="waiting-players-list">
-                    <h4>Players Ready:</h4>
-                    {waitingPlayers.map((player, idx) => (
-                      <div key={idx} className="waiting-player">
-                        {player.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="session-actions">
-                  <button 
-                    className="start-game-btn"
-                    onClick={handleStartGame}
-                    disabled={waitingPlayers.length === 0}
-                  >
-                    <span className="material-icons">play_arrow</span>
-                    START GAME ({waitingPlayers.length} players)
-                  </button>
-                  <button 
-                    className="close-btn"
-                    onClick={() => setShowSessionModal(false)}
-                  >
-                    Close Session
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="minimized-content" onClick={() => setIsModalMinimized(false)}>
-                <div className="minimized-info">
-                  <span className="minimized-code">Code: {sessionCode}</span>
-                  <span className="minimized-count">{waitingPlayers.length} waiting</span>
-                </div>
-                <span className="material-icons">expand_more</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <style>{`
         @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
         
@@ -517,193 +434,6 @@ function Dashboard({ user, onLogout }) {
           color: #4fd1ff;
           font-size: 13px;
           font-weight: 500;
-        }
-        
-        /* Session Modal Styles */
-        .session-modal-bg {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(0,0,0,0.5);
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .session-modal {
-          background: #fff;
-          border-radius: 18px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-          padding: 32px;
-          min-width: 450px;
-          max-width: 500px;
-          transition: all 0.3s ease;
-        }
-        
-        .session-modal.minimized {
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          top: auto;
-          left: auto;
-          transform: none;
-          min-width: 280px;
-          padding: 16px 20px;
-          cursor: pointer;
-        }
-        
-        .session-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-        
-        .session-modal-header h2 {
-          margin: 0;
-          color: #333;
-        }
-        
-        .minimize-btn {
-          background: #f0f0f0;
-          border: none;
-          border-radius: 50%;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #666;
-        }
-        
-        .minimize-btn:hover {
-          background: #e0e0e0;
-        }
-        
-        .session-code {
-          font-size: 24px;
-          font-weight: 700;
-          text-align: center;
-          margin: 20px 0;
-        }
-        
-        .session-stats {
-          display: flex;
-          gap: 20px;
-          margin: 20px 0;
-        }
-        
-        .stat {
-          flex: 1;
-          text-align: center;
-          padding: 12px;
-          background: #f8f9fa;
-          border-radius: 8px;
-        }
-        
-        .stat-label {
-          display: block;
-          font-size: 12px;
-          color: #666;
-          margin-bottom: 4px;
-        }
-        
-        .stat-value {
-          font-size: 18px;
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .waiting-players-list {
-          margin: 20px 0;
-          max-height: 120px;
-          overflow-y: auto;
-        }
-        
-        .waiting-players-list h4 {
-          margin: 0 0 8px 0;
-          color: #333;
-          font-size: 14px;
-        }
-        
-        .waiting-player {
-          padding: 6px 12px;
-          background: #e8f5e8;
-          border-radius: 6px;
-          margin-bottom: 4px;
-          color: #2d5a2d;
-          font-size: 14px;
-        }
-        
-        .session-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        
-        .start-game-btn {
-          background: #19d419;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 12px 20px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-        
-        .start-game-btn:hover:not(:disabled) {
-          background: #17c717;
-        }
-        
-        .start-game-btn:disabled {
-          background: #ccc;
-          cursor: not-allowed;
-        }
-        
-        .close-btn {
-          background: #f0f0f0;
-          color: #666;
-          border: none;
-          border-radius: 8px;
-          padding: 8px 20px;
-          font-size: 14px;
-          cursor: pointer;
-        }
-        
-        .close-btn:hover {
-          background: #e0e0e0;
-        }
-        
-        .minimized-content {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-        }
-        
-        .minimized-info {
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .minimized-code {
-          font-weight: bold;
-          color: #4fd1ff;
-          font-size: 14px;
-        }
-        
-        .minimized-count {
-          font-size: 12px;
-          color: #666;
         }
         
         @media (max-width: 768px) {
