@@ -13,6 +13,7 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -93,12 +94,22 @@ function Login({ onLogin }) {
                 <div className="input-wrapper">
                   <span className="material-icons input-icon">lock</span>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    className="eye-button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex="-1"
+                  >
+                    <span className="material-icons">
+                      {showPassword ? "visibility_off" : "visibility"}
+                    </span>
+                  </button>
                 </div>
               </label>
             </div>
@@ -400,6 +411,29 @@ function Login({ onLogin }) {
         
         .login-form input::placeholder {
           color: #9CA3AF;
+        }
+        
+        .eye-button {
+          position: absolute;
+          right: 12px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #9CA3AF;
+          transition: color 0.2s ease;
+          z-index: 1;
+        }
+        
+        .eye-button:hover {
+          color: #A78BFA;
+        }
+        
+        .eye-button .material-icons {
+          font-size: 20px;
         }
         
         .error-message {

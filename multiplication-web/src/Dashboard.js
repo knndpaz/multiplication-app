@@ -16,6 +16,7 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  getDocs,
 } from "firebase/firestore";
 import { getSessionAnalytics } from "./analytics";
 
@@ -31,17 +32,55 @@ function Dashboard({ user, onLogout, onStartSession }) {
   // Analytics state
   const [analytics, setAnalytics] = React.useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(true);
+  const [totalStudents, setTotalStudents] = React.useState(0);
+  const [questionCounts, setQuestionCounts] = React.useState({
+    "level-1": 0,
+    "level-2": 0,
+    "level-3": 0,
+  });
 
-  // Load analytics on mount
+  // Load analytics and students on mount
   React.useEffect(() => {
-    async function loadAnalytics() {
+    async function loadData() {
       setLoadingAnalytics(true);
+
+      // Load analytics
       const data = await getSessionAnalytics();
       setAnalytics(data);
+
+      // Load total students
+      if (user?.uid) {
+        try {
+          const studentsSnap = await getDocs(
+            collection(db, "students", user.uid, "list")
+          );
+          setTotalStudents(studentsSnap.size);
+        } catch (err) {
+          console.error("Error fetching students:", err);
+          setTotalStudents(0);
+        }
+
+        // Load question counts for each level
+        const levels = ["level-1", "level-2", "level-3"];
+        const counts = {};
+        for (const level of levels) {
+          try {
+            const questionsSnap = await getDocs(
+              collection(db, "questions", user.uid, level)
+            );
+            counts[level] = questionsSnap.size;
+          } catch (err) {
+            console.error(`Error fetching questions for ${level}:`, err);
+            counts[level] = 0;
+          }
+        }
+        setQuestionCounts(counts);
+      }
+
       setLoadingAnalytics(false);
     }
-    loadAnalytics();
-  }, []);
+    loadData();
+  }, [user]);
 
   // Generate insights from analytics
   const insights = React.useMemo(() => {
@@ -97,6 +136,16 @@ function Dashboard({ user, onLogout, onStartSession }) {
   }, [analytics]);
 
   const gameIcons = [cake, speedo, fire];
+  const gameLevels = [
+    { name: "LEVEL 1", level: "level-1", difficulty: "Easy", color: "#FFB6D9" },
+    {
+      name: "LEVEL 2",
+      level: "level-2",
+      difficulty: "Medium",
+      color: "#B794F6",
+    },
+    { name: "LEVEL 3", level: "level-3", difficulty: "Hard", color: "#6BAAFF" },
+  ];
 
   async function handleGroupPlay(level) {
     const code = generateSessionCode();
@@ -118,341 +167,767 @@ function Dashboard({ user, onLogout, onStartSession }) {
     <div className="dashboard-bg">
       <Header user={user} onLogout={onLogout} />
       <div className="dashboard-content">
-        <div className="dashboard-breadcrumb card">Dashboard</div>
-        <div className="dashboard-main-row">
-          <div className="dashboard-main-col equal-height-col">
-            <div className="dashboard-welcome card">
-              <div>
-                <h1>
-                  Hi, {user?.firstname} {user?.lastname}!
-                </h1>
-                <p>
-                  Monitor your multiplication game sessions and track student
-                  progress with real-time analytics and insights.
-                </p>
-              </div>
-              <div className="dashboard-people-wrapper">
-                <img src={people} alt="" className="dashboard-people" />
-              </div>
+        <div className="dashboard-breadcrumb card">
+          <span
+            className="material-icons"
+            style={{ fontSize: 16, marginRight: 6 }}
+          >
+            home
+          </span>
+          Dashboard
+        </div>
+
+        <div className="dashboard-welcome-card card">
+          <div className="welcome-content">
+            <div className="welcome-badge">
+              <span className="material-icons">waving_hand</span>
+              Welcome Back
             </div>
-            <div className="dashboard-games card">
-              <h2>Games</h2>
-              <div className="game-list">
-                {["LEVEL 1", "LEVEL 2", "LEVEL 3"].map((level, i) => (
-                  <div className="game-row" key={level}>
-                    <img
-                      src={gameIcons[i]}
-                      alt=""
-                      className={`game-img-icon game-img-icon-${i}`}
-                      style={{ width: 32, height: 32 }}
-                    />
-                    <span className="game-level">{level}</span>
-                    <button
-                      className="game-btn edit"
-                      onClick={() =>
-                        navigate(
-                          `/games/${level.toLowerCase().replace(" ", "-")}/edit`
-                        )
-                      }
-                    >
-                      <span className="material-icons">edit</span> Edit
-                    </button>
-                    <button
-                      className="game-btn play"
-                      onClick={() =>
-                        window.open("http://localhost:8081", "_blank")
-                      }
-                    >
-                      <span className="material-icons">play_arrow</span> Play
-                    </button>
-                    <button
-                      className="game-btn group"
-                      onClick={() => handleGroupPlay(level)}
-                    >
-                      <span className="material-icons">groups</span> Group Play
-                    </button>
-                  </div>
-                ))}
+            <h1>
+              Hi, {user?.firstname} {user?.lastname}!
+            </h1>
+            <p>
+              Monitor your multiplication game sessions and track student
+              progress with real-time analytics and insights.
+            </p>
+            <div className="welcome-stats">
+              <div
+                className="stat-item clickable"
+                onClick={() => navigate("/students")}
+              >
+                <span className="material-icons">school</span>
+                <div>
+                  <div className="stat-value">{totalStudents}</div>
+                  <div className="stat-label">Students</div>
+                </div>
+              </div>
+              <div
+                className="stat-item clickable"
+                onClick={() => navigate("/reports")}
+              >
+                <span className="material-icons">emoji_events</span>
+                <div>
+                  <div className="stat-value">42</div>
+                  <div className="stat-label">Sessions</div>
+                </div>
+              </div>
+              <div
+                className="stat-item clickable"
+                onClick={() => navigate("/reports")}
+              >
+                <span className="material-icons">trending_up</span>
+                <div>
+                  <div className="stat-value">87%</div>
+                  <div className="stat-label">Avg Score</div>
+                </div>
               </div>
             </div>
           </div>
-          <div className="dashboard-insights card equal-height-col">
-            <div className="insights-header">
-              <img
-                src={insightstone}
-                alt=""
-                style={{ width: 32, height: 32, marginRight: 8 }}
-              />
-              <b>Quick Insights</b>
-              <a href="/reports" className="insights-link">
-                View all reports{" "}
-                <span
-                  className="material-icons"
-                  style={{ fontSize: 16, verticalAlign: "middle" }}
-                >
-                  arrow_forward
-                </span>
-              </a>
+          <div className="welcome-illustration">
+            <img src={people} alt="People" className="dashboard-people" />
+          </div>
+        </div>
+
+        <div className="dashboard-main-row">
+          <div className="dashboard-games-section">
+            <div className="section-header card">
+              <div className="section-title">
+                <span className="material-icons">videogame_asset</span>
+                <h2>Game Levels</h2>
+              </div>
+              <div className="section-subtitle">
+                Manage and play multiplication games
+              </div>
             </div>
-            <div className="insights-list">
-              {loadingAnalytics ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    color: "#888",
-                  }}
-                >
-                  Loading analytics...
-                </div>
-              ) : (
-                insights.map((insight, idx) => (
+
+            <div className="games-grid">
+              {gameLevels.map((level, i) => (
+                <div className="game-card card" key={level.name}>
                   <div
-                    key={insight.key}
-                    className={`insight insight-${insight.key}`}
+                    className="game-card-header"
                     style={{
-                      borderColor: insight.borderColor,
-                      background: insight.bgColor,
+                      background: `linear-gradient(135deg, ${level.color} 0%, ${level.color}dd 100%)`,
                     }}
                   >
-                    <div
-                      className="insight-shadow"
-                      style={{
-                        background: insight.borderColor,
-                      }}
-                    />
-                    <img
-                      src={insight.icon}
-                      alt=""
-                      style={{
-                        width: 38,
-                        height: 38,
-                        marginTop: 2,
-                        marginRight: 8,
-                        flexShrink: 0,
-                        zIndex: 1,
-                      }}
-                    />
-                    <div style={{ zIndex: 1 }}>
-                      <b>{insight.title}</b>
-                      <div className="insight-desc">{insight.desc}</div>
-                      <div className="insight-link">{insight.link}</div>
+                    <img src={gameIcons[i]} alt="" className="game-icon" />
+                    <div className="game-level-info">
+                      <div className="game-level-name">{level.name}</div>
+                      <div className="game-difficulty">
+                        {level.difficulty} Difficulty
+                      </div>
                     </div>
                   </div>
-                ))
-              )}
+
+                  <div className="game-card-body">
+                    <div className="game-stats">
+                      <div className="game-stat">
+                        <span className="material-icons">quiz</span>
+                        <span>{questionCounts[level.level]} Questions</span>
+                      </div>
+                      <div className="game-stat">
+                        <span className="material-icons">people</span>
+                        <span>25 Max Players</span>
+                      </div>
+                    </div>
+
+                    <div className="game-actions">
+                      <button
+                        className="game-action-btn edit-btn"
+                        onClick={() => navigate(`/games/${level.level}/edit`)}
+                      >
+                        <span className="material-icons">edit</span>
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        className="game-action-btn play-btn"
+                        onClick={() =>
+                          window.open("http://localhost:8081", "_blank")
+                        }
+                      >
+                        <span className="material-icons">play_arrow</span>
+                        <span>Play</span>
+                      </button>
+                      <button
+                        className="game-action-btn group-btn"
+                        onClick={() => handleGroupPlay(level.name)}
+                      >
+                        <span className="material-icons">groups</span>
+                        <span>Group</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="dashboard-insights-section">
+            <div className="insights-card card">
+              <div className="insights-header">
+                <div className="insights-title">
+                  <img src={insightstone} alt="" className="insights-icon" />
+                  <h3>Quick Insights</h3>
+                </div>
+                <a href="/reports" className="insights-link">
+                  View Reports
+                  <span className="material-icons">arrow_forward</span>
+                </a>
+              </div>
+
+              <div className="insights-list">
+                {loadingAnalytics ? (
+                  <div className="loading-state">
+                    <div className="loading-spinner-small"></div>
+                    <span>Loading analytics...</span>
+                  </div>
+                ) : (
+                  insights.map((insight) => (
+                    <div
+                      key={insight.key}
+                      className="insight-item"
+                      style={{
+                        borderLeftColor: insight.borderColor,
+                        background: insight.bgColor,
+                      }}
+                    >
+                      <div
+                        className="insight-icon-wrapper"
+                        style={{ background: insight.borderColor }}
+                      >
+                        <img
+                          src={insight.icon}
+                          alt=""
+                          className="insight-icon-img"
+                        />
+                      </div>
+                      <div className="insight-content">
+                        <div className="insight-title">{insight.title}</div>
+                        <div className="insight-desc">{insight.desc}</div>
+                        <div
+                          className="insight-link"
+                          style={{ color: insight.borderColor }}
+                        >
+                          {insight.link}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
       <style>{`
         @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
         
-        .dashboard-bg {
-          min-height: 100vh;
-          background: #EAEAEA;
+        * {
+          box-sizing: border-box;
+          margin: 0;
           padding: 0;
         }
         
+        .dashboard-bg {
+          min-height: 100vh;
+          background: linear-gradient(180deg, #F864D3 0%, #9D7CE8 50%, #6BAAFF 100%);
+          padding: 0;
+          font-family: 'Poppins', sans-serif;
+        }
+        
         .dashboard-content {
-          padding: 32px 2vw 24px 2vw;
+          padding: 24px;
           max-width: 1400px;
           margin: 0 auto;
         }
         
         .card {
-          background: #fff;
-          border-radius: 16px;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.07);
-          padding: 22px 32px;
-          margin-bottom: 18px;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border-radius: 20px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+          padding: 24px;
+          margin-bottom: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .dashboard-breadcrumb {
+          display: flex;
+          align-items: center;
+          font-size: 14px;
+          color: #333;
+          font-weight: 600;
+          padding: 14px 20px;
+          margin-bottom: 20px;
+        }
+        
+        .dashboard-welcome-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 40px;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+          position: relative;
+          overflow: hidden;
+          min-height: 280px;
+        }
+        
+        .welcome-content {
+          flex: 1;
+          z-index: 1;
+        }
+        
+        .welcome-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: linear-gradient(135deg, #FFB6D9 0%, #FF8DC7 100%);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
           font-size: 13px;
-          color: #444;
-          border-radius: 10px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-          font-family: 'Inter', Arial, sans-serif;
-          font-weight: 500;
-          padding: 12px 18px;
+          font-weight: 600;
+          margin-bottom: 16px;
+        }
+        
+        .welcome-badge .material-icons {
+          font-size: 18px;
+        }
+        
+        .welcome-content h1 {
+          font-size: 2.5rem;
+          color: #333;
+          margin-bottom: 12px;
+          font-weight: 700;
+        }
+        
+        .welcome-content p {
+          color: #666;
+          font-size: 1rem;
+          line-height: 1.6;
+          margin-bottom: 24px;
+          max-width: 600px;
+        }
+        
+        .welcome-stats {
+          display: flex;
+          gap: 32px;
+          flex-wrap: wrap;
+        }
+        
+        .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          transition: all 0.3s ease;
+        }
+        
+        .stat-item.clickable {
+          cursor: pointer;
+          padding: 8px 12px;
+          border-radius: 12px;
+          margin: -8px -12px;
+        }
+        
+        .stat-item.clickable:hover {
+          background: rgba(157, 124, 232, 0.1);
+          transform: translateY(-2px);
+        }
+        
+        .stat-item .material-icons {
+          font-size: 40px;
+          color: #9D7CE8;
+          background: rgba(157, 124, 232, 0.1);
+          padding: 8px;
+          border-radius: 12px;
+          transition: all 0.3s ease;
+        }
+        
+        .stat-item.clickable:hover .material-icons {
+          background: rgba(157, 124, 232, 0.2);
+          transform: scale(1.05);
+        }
+        
+        .stat-value {
+          font-size: 1.8rem;
+          font-weight: 700;
+          color: #333;
+          line-height: 1;
+        }
+        
+        .stat-label {
+          font-size: 0.85rem;
+          color: #888;
+          margin-top: 2px;
+        }
+        
+        .welcome-illustration {
+          position: relative;
+          min-width: 200px;
+          height: 200px;
+          z-index: 1;
+        }
+        
+        .dashboard-people {
+          width: 280px;
+          height: auto;
+          position: absolute;
+          top: -40px;
+          right: -40px;
+          filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1));
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-15px); }
         }
         
         .dashboard-main-row {
           display: flex;
           gap: 24px;
-          align-items: stretch;
+          align-items: flex-start;
         }
         
-        .dashboard-main-col {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
+        .dashboard-games-section {
+          flex: 2;
         }
         
-        .dashboard-insights {
-          flex: 1;
-          max-width: 400px;
+        .section-header {
+          padding: 20px 28px;
+          margin-bottom: 20px;
         }
         
-        .dashboard-welcome {
+        .section-title {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          min-height: 120px;
-          position: relative;
-        }
-        
-        .dashboard-welcome h1 {
-          margin: 0 0 10px 0;
-          font-size: 2.2rem;
-          color: #333;
-        }
-        
-        .dashboard-welcome p {
-          margin: 0;
-          color: #888;
-          font-size: 1rem;
-        }
-        
-        .dashboard-people-wrapper {
-          position: relative;
-          min-width: 120px;
-          height: 120px;
-        }
-        
-        .dashboard-people {
-          width: 180px;
-          height: auto;
-          position: absolute;
-          top: -60px;
-          right: -20px;
-        }
-        
-        .dashboard-games h2 {
-          margin: 0 0 18px 0;
-          color: #333;
-        }
-        
-        .game-list {
-          display: flex;
-          flex-direction: column;
           gap: 12px;
+          margin-bottom: 8px;
         }
         
-        .game-row {
+        .section-title .material-icons {
+          font-size: 28px;
+          color: #9D7CE8;
+        }
+        
+        .section-title h2 {
+          font-size: 1.5rem;
+          color: #333;
+          font-weight: 700;
+          margin: 0;
+        }
+        
+        .section-subtitle {
+          color: #888;
+          font-size: 0.9rem;
+          margin-left: 40px;
+        }
+        
+        .games-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 20px;
+        }
+        
+        .game-card {
+          padding: 0;
+          overflow: hidden;
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+        
+        .game-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .game-card-header {
+          padding: 24px;
           display: flex;
           align-items: center;
           gap: 16px;
-          background: #f8f8f8;
-          border-radius: 10px;
-          padding: 14px 18px;
+          background: linear-gradient(135deg, #FFB6D9 0%, #FF8DC7 100%);
         }
         
-        .game-level {
-          font-weight: 600;
-          font-size: 17px;
-          flex: 1;
+        .game-icon {
+          width: 50px;
+          height: 50px;
+          background: rgba(255, 255, 255, 0.9);
+          padding: 10px;
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
-        .game-btn {
-          border: none;
-          border-radius: 7px;
-          padding: 7px 14px;
-          font-size: 14px;
-          font-weight: 500;
-          margin-left: 8px;
+        .game-level-info {
+          color: white;
+        }
+        
+        .game-level-name {
+          font-size: 1.3rem;
+          font-weight: 700;
+          margin-bottom: 4px;
+        }
+        
+        .game-difficulty {
+          font-size: 0.85rem;
+          opacity: 0.95;
+        }
+        
+        .game-card-body {
+          padding: 20px 24px 24px 24px;
+        }
+        
+        .game-stats {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .game-stat {
           display: flex;
           align-items: center;
-          gap: 4px;
-          cursor: pointer;
-          transition: background 0.2s;
+          gap: 6px;
+          font-size: 0.85rem;
+          color: #666;
         }
         
-        .game-btn.edit { background: #ffb86b; color: #fff; }
-        .game-btn.play { background: #3ecf8e; color: #fff; }
-        .game-btn.group { background: #4fd1ff; color: #fff; }
+        .game-stat .material-icons {
+          font-size: 18px;
+          color: #9D7CE8;
+        }
         
-        .game-btn:hover {
-          opacity: 0.9;
+        .game-actions {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+        }
+        
+        .game-action-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 12px 8px;
+          border: none;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-family: 'Poppins', sans-serif;
+        }
+        
+        .game-action-btn .material-icons {
+          font-size: 20px;
+        }
+        
+        .edit-btn {
+          background: linear-gradient(135deg, #FFB86B 0%, #FFA94D 100%);
+          color: white;
+        }
+        
+        .play-btn {
+          background: linear-gradient(135deg, #3ECF8E 0%, #2DB77D 100%);
+          color: white;
+        }
+        
+        .group-btn {
+          background: linear-gradient(135deg, #4FD1FF 0%, #2EB8E6 100%);
+          color: white;
+        }
+        
+        .game-action-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .dashboard-insights-section {
+          flex: 1;
+          min-width: 360px;
+        }
+        
+        .insights-card {
+          position: sticky;
+          top: 24px;
         }
         
         .insights-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 18px;
+          margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .insights-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .insights-icon {
+          width: 32px;
+          height: 32px;
+        }
+        
+        .insights-title h3 {
+          font-size: 1.3rem;
+          color: #333;
+          font-weight: 700;
+          margin: 0;
         }
         
         .insights-link {
-          color: #888;
-          font-size: 13px;
-          text-decoration: none;
           display: flex;
           align-items: center;
+          gap: 4px;
+          color: #9D7CE8;
+          text-decoration: none;
+          font-size: 0.85rem;
+          font-weight: 600;
+          transition: color 0.2s;
+        }
+        
+        .insights-link:hover {
+          color: #8B6BD8;
+        }
+        
+        .insights-link .material-icons {
+          font-size: 16px;
         }
         
         .insights-list {
           display: flex;
           flex-direction: column;
+          gap: 16px;
+        }
+        
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+          color: #888;
           gap: 12px;
         }
         
-        .insight {
+        .loading-spinner-small {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(157, 124, 232, 0.2);
+          border-top-color: #9D7CE8;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        .insight-item {
           display: flex;
           align-items: flex-start;
-          gap: 16px;
+          gap: 14px;
+          padding: 16px;
           border-radius: 12px;
-          padding: 16px 18px;
-          border: 1.5px solid #eee;
-          position: relative;
+          border-left: 4px solid;
+          transition: all 0.2s;
         }
         
-        .insight-shadow {
-          position: absolute;
-          left: -2px;
-          top: 8px;
-          bottom: 8px;
-          width: 6px;
-          border-radius: 3px;
+        .insight-item:hover {
+          transform: translateX(4px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         
-        .insight b {
-          display: block;
-          margin-bottom: 4px;
+        .insight-icon-wrapper {
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        
+        .insight-icon-img {
+          width: 26px;
+          height: 26px;
+          filter: brightness(0) invert(1);
+        }
+        
+        .insight-content {
+          flex: 1;
+        }
+        
+        .insight-title {
+          font-weight: 600;
           color: #333;
+          margin-bottom: 6px;
+          font-size: 0.95rem;
         }
         
         .insight-desc {
           color: #666;
-          font-size: 13px;
-          margin-bottom: 2px;
+          font-size: 0.85rem;
+          margin-bottom: 6px;
+          line-height: 1.4;
         }
         
         .insight-link {
-          color: #4fd1ff;
-          font-size: 13px;
-          font-weight: 500;
+          font-size: 0.8rem;
+          font-weight: 600;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 1200px) {
           .dashboard-main-row {
             flex-direction: column;
           }
           
-          .dashboard-insights {
-            max-width: none;
+          .dashboard-insights-section {
+            min-width: 0;
+            width: 100%;
           }
           
-          .dashboard-welcome {
+          .insights-card {
+            position: static;
+          }
+          
+          .games-grid {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .dashboard-content {
+            padding: 16px;
+          }
+          
+          .card {
+            padding: 20px;
+          }
+          
+          .dashboard-welcome-card {
             flex-direction: column;
             text-align: center;
+            padding: 32px 24px;
             min-height: auto;
           }
           
-          .dashboard-people-wrapper {
+          .welcome-content h1 {
+            font-size: 2rem;
+          }
+          
+          .welcome-content p {
+            max-width: 100%;
+          }
+          
+          .welcome-stats {
+            justify-content: center;
+            gap: 24px;
+          }
+          
+          .welcome-illustration {
             margin-top: 20px;
+            height: 150px;
+          }
+          
+          .dashboard-people {
+            width: 220px;
+            top: -20px;
+            right: -20px;
+          }
+          
+          .section-header {
+            padding: 16px 20px;
+          }
+          
+          .section-subtitle {
+            margin-left: 0;
+            margin-top: 8px;
+          }
+          
+          .games-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .welcome-content h1 {
+            font-size: 1.6rem;
+          }
+          
+          .welcome-content p {
+            font-size: 0.9rem;
+          }
+          
+          .welcome-stats {
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+          }
+          
+          .stat-item {
+            width: 100%;
+            justify-content: center;
+          }
+          
+          .dashboard-people {
+            width: 180px;
+          }
+          
+          .game-actions {
+            grid-template-columns: 1fr;
+          }
+          
+          .insights-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
           }
         }
       `}</style>
