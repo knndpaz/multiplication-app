@@ -89,7 +89,7 @@ function Reports({ user, onLogout }) {
               </div>
             </div>
           </div>
-          <div className="reports-title-right">
+          <div className="reports-title-right desktop-search">
             <div className="reports-search">
               <span className="material-icons search-icon">search</span>
               <input
@@ -206,6 +206,26 @@ function Reports({ user, onLogout }) {
                   {filteredStudents.length !== 1 ? "s" : ""}
                 </div>
               )}
+            </div>
+
+            {/* Mobile Search Bar - Positioned right above the table */}
+            <div className="mobile-search-container">
+              <div className="reports-search mobile-search">
+                <span className="material-icons search-icon">search</span>
+                <input
+                  placeholder="Search students..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <span
+                    className="material-icons clear-icon"
+                    onClick={clearSearch}
+                  >
+                    close
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="reports-student-table">
@@ -509,6 +529,12 @@ function Reports({ user, onLogout }) {
           display: flex;
           align-items: center;
           gap: 12px;
+        }
+        
+        /* Mobile search container - hidden on desktop */
+        .mobile-search-container {
+          display: none;
+          margin-bottom: 16px;
         }
         
         .reports-search {
@@ -1043,13 +1069,24 @@ function Reports({ user, onLogout }) {
             width: 100%;
           }
           
-          .reports-search {
+          /* Hide desktop search, show mobile search */
+          .desktop-search {
+            display: none !important;
+          }
+          
+          .mobile-search-container {
+            display: block;
+          }
+          
+          .mobile-search {
             width: 100%;
             min-width: 0;
+            margin-bottom: 0;
           }
           
           .reports-stats-row {
             grid-template-columns: 1fr;
+            margin-bottom: 16px;
           }
           
           .reports-icon-wrapper {
@@ -1084,6 +1121,14 @@ function Reports({ user, onLogout }) {
           
           .reports-stat-value {
             font-size: 1.6rem;
+          }
+          
+          .reports-section-header {
+            margin-bottom: 16px;
+          }
+          
+          .reports-student-table {
+            margin-top: 0;
           }
           
           .reports-table-header,
@@ -1148,16 +1193,27 @@ function Reports({ user, onLogout }) {
             font-size: 0.8rem;
           }
           
-          .reports-search {
-            padding: 8px 12px;
+          /* Mobile search styling for better proximity to table */
+          .mobile-search-container {
+            margin-bottom: 12px;
           }
           
-          .search-icon {
+          .reports-search.mobile-search {
+            padding: 8px 12px;
+            border-radius: 10px;
+          }
+          
+          .reports-search.mobile-search .search-icon {
             font-size: 20px;
           }
           
-          .reports-search input {
+          .reports-search.mobile-search input {
             font-size: 14px;
+          }
+          
+          .reports-stats-row {
+            gap: 12px;
+            margin-bottom: 12px;
           }
           
           .reports-stat {
@@ -1186,8 +1242,25 @@ function Reports({ user, onLogout }) {
             font-size: 11px;
           }
           
+          .reports-section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+          }
+          
           .reports-section-title {
             font-size: 1rem;
+          }
+          
+          .search-results-info {
+            font-size: 12px;
+            padding: 5px 12px;
+          }
+          
+          .reports-student-table {
+            border-radius: 12px;
+            min-height: 350px;
           }
           
           .reports-table-header {
@@ -1234,6 +1307,7 @@ function Reports({ user, onLogout }) {
           .reports-pagination {
             flex-wrap: wrap;
             gap: 6px;
+            padding: 12px 0;
           }
           
           .page-nav {
@@ -1302,10 +1376,56 @@ function Reports({ user, onLogout }) {
           .empty-state p {
             font-size: 13px;
           }
+        }
+        
+        @media (max-width: 360px) {
+          .reports-content {
+            padding: 10px;
+          }
           
-          .search-results-info {
+          .card {
+            padding: 10px;
+          }
+          
+          .reports-title {
+            font-size: 1rem;
+          }
+          
+          .reports-subtitle {
+            font-size: 0.75rem;
+          }
+          
+          .mobile-search-container {
+            margin-bottom: 10px;
+          }
+          
+          .reports-search.mobile-search {
+            padding: 7px 10px;
+          }
+          
+          .reports-section-title {
+            font-size: 0.95rem;
+          }
+          
+          .reports-student-table {
+            min-height: 300px;
+          }
+          
+          .reports-table-row {
+            padding: 8px 10px;
+          }
+          
+          .reports-student-name {
             font-size: 12px;
-            padding: 5px 12px;
+          }
+          
+          .reports-student-meta {
+            font-size: 9px;
+          }
+          
+          .reports-score {
+            font-size: 11px;
+            padding: 4px 8px;
           }
         }
       `}</style>

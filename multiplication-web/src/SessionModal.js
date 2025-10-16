@@ -16,6 +16,7 @@ function SessionModal({
   onMinimize,
   onExpand,
   onClose,
+  onGameStart, // NEW PROP
 }) {
   const [playerCount, setPlayerCount] = React.useState(0);
   const [waitingPlayers, setWaitingPlayers] = React.useState([]);
@@ -46,8 +47,8 @@ function SessionModal({
         gameStartedAt: serverTimestamp(),
       });
 
-      // Close modal after starting
-      onClose();
+      // Trigger game start to show ranking modal
+      onGameStart();
     } catch (error) {
       console.error("Error starting game:", error);
     }
