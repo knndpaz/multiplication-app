@@ -10,6 +10,7 @@ import {
   Animated,
   Easing,
   Keyboard,
+  AppState,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
@@ -22,6 +23,7 @@ import {
   doc,
   updateDoc,
   arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 
 export default function CodeScreen({ navigation }) {
@@ -30,6 +32,9 @@ export default function CodeScreen({ navigation }) {
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(true);
+  const [joinedPlayerId, setJoinedPlayerId] = useState(null);
+  const [joinedSessionId, setJoinedSessionId] = useState(null);
+  const hasJoinedSuccessfullyRef = useRef(false);
   const [floatingElements] = useState(() =>
     Array.from({ length: 15 }, (_, i) => ({
       id: i,
@@ -55,6 +60,67 @@ export default function CodeScreen({ navigation }) {
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
   }, []);
+
+  // Handle app state changes to cleanup on app close/background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (joinedPlayerId && joinedSessionId) {
+          const removePlayer = async () => {
+            try {
+              const sessionDoc = doc(db, "sessions", joinedSessionId);
+              await updateDoc(sessionDoc, {
+                players: arrayRemove(joinedPlayerId),
+                readyPlayers: arrayRemove(joinedPlayerId),
+              });
+              console.log("Player removed from session due to app close/background");
+            } catch (error) {
+              console.error("Error removing player from session:", error);
+            }
+          };
+          removePlayer();
+        }
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [joinedPlayerId, joinedSessionId]);
+
+  // Handle browser tab close and visibility changes for web version
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (document.hidden && joinedPlayerId && joinedSessionId) {
+          updateDoc(doc(db, "sessions", joinedSessionId), {
+            players: arrayRemove(joinedPlayerId),
+            readyPlayers: arrayRemove(joinedPlayerId),
+          }).catch(error => console.error("Error removing player on visibility change:", error));
+        }
+      };
+
+      const handleBeforeUnload = () => {
+        if (joinedPlayerId && joinedSessionId) {
+          // Start the cleanup operation without awaiting (browsers may allow some time for async operations)
+          updateDoc(doc(db, "sessions", joinedSessionId), {
+            players: arrayRemove(joinedPlayerId),
+            readyPlayers: arrayRemove(joinedPlayerId),
+          }).catch(error => console.error("Error removing player on tab close:", error));
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [joinedPlayerId, joinedSessionId]);
+
+
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -163,6 +229,11 @@ export default function CodeScreen({ navigation }) {
       await updateDoc(doc(db, "sessions", sessionDoc.id), {
         players: arrayUnion(playerId),
       });
+
+      // Set the joined player and session IDs for cleanup
+      setJoinedPlayerId(playerId);
+      setJoinedSessionId(sessionDoc.id);
+      hasJoinedSuccessfullyRef.current = true;
 
       console.log("Successfully joined session, navigating to SelectCharacter");
 
@@ -292,7 +363,15 @@ export default function CodeScreen({ navigation }) {
       {/* Back Button */}
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigation.goBack()}
+        onPress={() => {
+          if (joinedPlayerId && joinedSessionId) {
+            updateDoc(doc(db, "sessions", joinedSessionId), {
+              players: arrayRemove(joinedPlayerId),
+              readyPlayers: arrayRemove(joinedPlayerId),
+            }).catch(error => console.error("Error removing player on back:", error));
+          }
+          navigation.goBack();
+        }}
         activeOpacity={0.8}
       >
         <LinearGradient

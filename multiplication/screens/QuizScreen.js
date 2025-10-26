@@ -14,6 +14,7 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import {
@@ -22,7 +23,9 @@ import {
   doc,
   getDoc,
   updateDoc,
+  setDoc,
   arrayUnion,
+  onSnapshot,
 } from "firebase/firestore";
 
 const { width, height } = Dimensions.get("window");
@@ -48,6 +51,9 @@ export default function QuizScreen({ route, navigation }) {
   const [startTime] = useState(Date.now());
   const [questionStartTimes, setQuestionStartTimes] = useState({});
   const [questionResults, setQuestionResults] = useState([]);
+  const questionResultsRef = useRef([]);
+  const [rankings, setRankings] = useState([]);
+  const [currentRank, setCurrentRank] = useState(null);
   const TIMER_DURATION = 50;
   const [timer, setTimer] = useState(TIMER_DURATION);
   const intervalRef = useRef();
@@ -168,6 +174,31 @@ export default function QuizScreen({ route, navigation }) {
     }));
   }, [currentIdx]);
 
+  // Listen for real-time ranking updates
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "sessions", sessionId, "rankings"),
+      (snapshot) => {
+        const rankingsData = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        setRankings(rankingsData);
+
+        // Find current player's rank
+        const playerRank = rankingsData.findIndex((r) => r.id === studentId) + 1;
+        setCurrentRank(playerRank > 0 ? playerRank : null);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [sessionId, studentId]);
+
   // Function to save score and navigate to ranking
   const finishQuiz = async () => {
     try {
@@ -190,7 +221,7 @@ export default function QuizScreen({ route, navigation }) {
         totalTime,
         averageTimePerQuestion: totalTime / questions.length,
         finishedAt: endTime,
-        questionResults: questionResults,
+        questionResults: questionResultsRef.current,
         level: sessionData.level,
       };
 
@@ -205,6 +236,19 @@ export default function QuizScreen({ route, navigation }) {
         scores: [...filteredScores, playerResult],
         lastUpdated: endTime,
       });
+
+      // Save to rankings subcollection for real-time updates
+      const rankingData = {
+        name: studentName,
+        score,
+        accuracy: (score / questions.length) * 100,
+        correct: score,
+        totalTime,
+        finishedAt: endTime,
+      };
+
+      const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
+      await setDoc(rankingRef, rankingData);
 
       navigation.navigate("RankingScreen", {
         sessionId,
@@ -278,19 +322,21 @@ export default function QuizScreen({ route, navigation }) {
   }, [sessionId]);
 
   // Track question results
-  const recordQuestionResult = (questionId, question, isCorrect, timeTaken) => {
+  const recordQuestionResult = (questionId, question, isCorrect, timeTaken, userAnswer = "") => {
     const result = {
       questionId,
       question,
       isCorrect,
       timeTaken,
+      userAnswer,
       answeredAt: Date.now(),
     };
     setQuestionResults((prev) => [...prev, result]);
+    questionResultsRef.current.push(result);
   };
 
   // Handle text answer submission
-  const handleSubmitAnswer = () => {
+  const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIdx];
     const timeTaken =
       Date.now() - (questionStartTimes[currentIdx] || Date.now());
@@ -305,13 +351,34 @@ export default function QuizScreen({ route, navigation }) {
         currentQuestion.id,
         currentQuestion.question,
         isCorrect,
-        timeTaken
+        timeTaken,
+        textAnswer
       );
 
       if (isCorrect) {
+        // Play correct sound
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require("../assets/audio/Check mark sound effect.mp3")
+          );
+          await sound.playAsync();
+          setTimeout(() => sound.unloadAsync(), 2000);
+        } catch (error) {
+          console.error("Error playing correct sound:", error);
+        }
         setScore((prev) => prev + 1);
         setShowCheck(true);
       } else {
+        // Play wrong sound
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require("../assets/audio/Wrong Answer Sound effect.mp3")
+          );
+          await sound.playAsync();
+          setTimeout(() => sound.unloadAsync(), 2000);
+        } catch (error) {
+          console.error("Error playing wrong sound:", error);
+        }
         setShowWrong(true);
       }
 
@@ -338,6 +405,20 @@ export default function QuizScreen({ route, navigation }) {
       setTimer((t) => {
         if (t <= 1) {
           clearInterval(intervalRef.current);
+
+          // Record timeout as incorrect answer
+          const currentQuestion = questions[currentIdx];
+          const timeTaken = TIMER_DURATION * 1000; // Full timer duration
+          if (currentQuestion) {
+            recordQuestionResult(
+              currentQuestion.id,
+              currentQuestion.question,
+              false, // isCorrect
+              timeTaken,
+              "" // userAnswer for timeout
+            );
+          }
+
           setShowWrong(true);
 
           timeoutRef.current = setTimeout(() => {
@@ -365,40 +446,65 @@ export default function QuizScreen({ route, navigation }) {
 
   // Handle multiple choice selection
   useEffect(() => {
-    if (selected !== null && questions.length > 0) {
-      clearInterval(intervalRef.current);
-      const correctIdx = questions[currentIdx]?.correct;
-      const currentQuestion = questions[currentIdx];
-      const timeTaken =
-        Date.now() - (questionStartTimes[currentIdx] || Date.now());
-      const isCorrect = selected === correctIdx;
+    const handleSelection = async () => {
+      if (selected !== null && questions.length > 0) {
+        clearInterval(intervalRef.current);
+        const correctIdx = questions[currentIdx]?.correct;
+        const currentQuestion = questions[currentIdx];
+        const timeTaken =
+          Date.now() - (questionStartTimes[currentIdx] || Date.now());
+        const isCorrect = selected === correctIdx;
 
-      // Record question result
-      recordQuestionResult(
-        currentQuestion.id,
-        currentQuestion.question,
-        isCorrect,
-        timeTaken
-      );
+        // Record question result
+        recordQuestionResult(
+          currentQuestion.id,
+          currentQuestion.question,
+          isCorrect,
+          timeTaken,
+          selected !== null ? currentQuestion.options[selected].value : ""
+        );
 
-      if (isCorrect) {
-        setScore((prev) => prev + 1);
-        setShowCheck(true);
-      } else {
-        setShowWrong(true);
-      }
-
-      timeoutRef.current = setTimeout(() => {
-        setShowCheck(false);
-        setShowWrong(false);
-        setSelected(null);
-        if (currentIdx < questions.length - 1) {
-          setCurrentIdx((idx) => idx + 1);
+        if (isCorrect) {
+          // Play correct sound
+          try {
+            const { sound } = await Audio.Sound.createAsync(
+              require("../assets/audio/Check mark sound effect.mp3")
+            );
+            await sound.playAsync();
+            setTimeout(() => sound.unloadAsync(), 2000);
+          } catch (error) {
+            console.error("Error playing correct sound:", error);
+          }
+          setScore((prev) => prev + 1);
+          setShowCheck(true);
         } else {
-          finishQuiz();
+          // Play wrong sound
+          try {
+            const { sound } = await Audio.Sound.createAsync(
+              require("../assets/audio/Wrong Answer Sound effect.mp3")
+            );
+            await sound.playAsync();
+            setTimeout(() => sound.unloadAsync(), 2000);
+          } catch (error) {
+            console.error("Error playing wrong sound:", error);
+          }
+          setShowWrong(true);
         }
-      }, 1200);
-    }
+
+        timeoutRef.current = setTimeout(() => {
+          setShowCheck(false);
+          setShowWrong(false);
+          setSelected(null);
+          if (currentIdx < questions.length - 1) {
+            setCurrentIdx((idx) => idx + 1);
+          } else {
+            finishQuiz();
+          }
+        }, 1200);
+      }
+    };
+
+    handleSelection();
   }, [selected, questions, currentIdx]);
 
   if (!fontsLoaded || loading || !questions.length) {

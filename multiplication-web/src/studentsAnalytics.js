@@ -87,33 +87,34 @@ function calculateLevelProgress(sessions) {
     { name: "Level 3", difficulty: "Hard level", color: "#2196f3", icon: "filter_3" }
   ];
 
-  // Only return levels where the student has sessions
-  return levels.filter(level => {
+  // Create separate entries for each session
+  const levelProgress = [];
+  levels.forEach(level => {
     const levelSessions = sessions.filter(s => s.sessionLevel === level.name.toUpperCase());
-    return levelSessions.length > 0; // Only include levels with sessions
-  }).map(level => {
-    const levelSessions = sessions.filter(s => s.sessionLevel === level.name.toUpperCase());
-    const totalQuestions = levelSessions.reduce((sum, s) => sum + (s.totalQuestions || 0), 0);
-    const correctAnswers = levelSessions.reduce((sum, s) => sum + (s.correctAnswers || 0), 0);
-    const incorrectAnswers = totalQuestions - correctAnswers;
-    const completion = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    
-    // Generate question progress based on actual data
-    const questionProgress = Array.from({ length: Math.min(15, totalQuestions) }, (_, i) => {
-      // Create a more realistic progress based on actual performance
-      return Math.random() < (correctAnswers / totalQuestions);
+    levelSessions.forEach((session, index) => {
+      const questionResults = session.questionResults || [];
+      const totalQuestions = questionResults.length || session.totalQuestions || 0;
+      const correctAnswers = questionResults.filter(q => q.isCorrect).length || session.correctAnswers || 0;
+      const incorrectAnswers = totalQuestions - correctAnswers;
+      const completion = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+
+      // Generate question progress in sequential order based on actual question results
+      const questionProgress = questionResults.map(q => q.isCorrect);
+
+      levelProgress.push({
+        ...level,
+        name: `${level.name} - Session ${index + 1}`,
+        completion,
+        status: completion >= 90 ? "Completed" : "In Progress",
+        correctAnswers,
+        incorrectAnswers,
+        questionProgress,
+        sessionDate: session.sessionDate
+      });
     });
-    
-    return {
-      ...level,
-      completion,
-      status: completion >= 90 ? "Completed" : "In Progress",
-      correctAnswers,
-      incorrectAnswers,
-      questionProgress,
-      sessionsCount: levelSessions.length // Add session count for reference
-    };
   });
+
+  return levelProgress;
 }
 
 function calculateTrends(sessions) {

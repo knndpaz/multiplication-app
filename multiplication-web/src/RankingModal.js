@@ -279,6 +279,10 @@ function RankingModal({
                   <span className="material-icons">stop_circle</span>
                   End Session
                 </button>
+                <div className="session-info">
+                  <p className="session-code">Session Code: <strong>{sessionCode}</strong></p>
+                  <p className="session-status">Status: <strong>{sessionData?.status || 'active'}</strong></p>
+                </div>
               </div>
             </>
           ) : (
@@ -904,6 +908,25 @@ function RankingModal({
           display: flex;
           flex-direction: column;
           gap: 12px;
+        }
+
+        .session-info {
+          background: #F9FAFB;
+          border-radius: 12px;
+          padding: 12px 16px;
+          font-size: 14px;
+          color: #374151;
+          border: 1px solid #E5E7EB;
+        }
+
+        .session-code, .session-status {
+          margin: 4px 0;
+          font-weight: 500;
+        }
+
+        .session-code strong, .session-status strong {
+          color: #1F2937;
+          font-weight: 700;
         }
         
         .close-ranking-btn {

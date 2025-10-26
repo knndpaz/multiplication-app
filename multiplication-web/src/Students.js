@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "./Header";
 import people from "./assets/people.png";
 import {
@@ -9,6 +10,9 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  query,
+  where,
+  collectionGroup,
 } from "firebase/firestore";
 
 const db = getFirestore();
@@ -18,6 +22,8 @@ function randomPassword() {
 }
 
 function Students({ user, onLogout }) {
+  const navigate = useNavigate();
+
   const [students, setStudents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -33,12 +39,24 @@ function Students({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     async function fetchStudents() {
       if (!user?.uid) return;
       setLoading(true);
-      const snap = await getDocs(collection(db, "students", user.uid, "list"));
+      const snap = await getDocs(collectionGroup(db, "list"));
       const arr = [];
-      snap.forEach((doc) => arr.push({ ...doc.data(), id: doc.id }));
+      snap.forEach((doc) => {
+        const path = doc.ref.path;
+        const parts = path.split('/');
+        const userId = parts[1];
+        arr.push({ ...doc.data(), id: doc.id, userId });
+      });
       setStudents(arr);
       setLoading(false);
     }

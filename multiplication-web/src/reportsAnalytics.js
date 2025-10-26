@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getFirestore, collection, getDocs, collectionGroup } from "firebase/firestore";
 
 const db = getFirestore();
 
@@ -18,8 +18,8 @@ export async function getReportsAnalytics() {
       }
     });
 
-    // Get all students data
-    const studentsSnap = await getDocs(collection(db, "students", "rTPhhHNRT5gMWFsZWdrtmpUVhWd2", "list"));
+    // Get all students data from all users
+    const studentsSnap = await getDocs(collectionGroup(db, "list"));
     const allStudents = [];
     studentsSnap.forEach(doc => {
       allStudents.push({

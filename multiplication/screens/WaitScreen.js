@@ -7,11 +7,12 @@ import {
   Animated,
   Easing,
   Dimensions,
+  AppState,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, updateDoc, arrayUnion, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,6 +38,7 @@ export default function WaitScreen({ navigation, route }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const playerDataRef = useRef(null);
 
   const {
     sessionId,
@@ -47,6 +49,17 @@ export default function WaitScreen({ navigation, route }) {
     code,
     selectedCharacter,
   } = route.params;
+
+  // Define player object for consistent add/remove
+  if (!playerDataRef.current) {
+    playerDataRef.current = {
+      studentId,
+      name: studentName,
+      playerId,
+      joinedAt: Date.now(),
+    };
+  }
+  const playerData = playerDataRef.current;
 
   // Character images mapping
   const characterImages = [
@@ -61,6 +74,68 @@ export default function WaitScreen({ navigation, route }) {
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
   }, []);
+
+  // Handle app state changes to cleanup on app close/background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (playerId && sessionId) {
+          const removePlayer = async () => {
+            try {
+              const sessionDoc = doc(db, "sessions", sessionId);
+              await updateDoc(sessionDoc, {
+                players: arrayRemove(playerId),
+                waitingPlayers: arrayRemove(playerData),
+                readyPlayers: arrayRemove(playerId),
+              });
+              console.log("Player removed from session due to app close/background");
+            } catch (error) {
+              console.error("Error removing player from session:", error);
+            }
+          };
+          removePlayer();
+        }
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [playerId, sessionId, playerData]);
+
+  // Handle browser tab close and visibility changes for web version
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (document.hidden && playerId && sessionId) {
+          updateDoc(doc(db, "sessions", sessionId), {
+            players: arrayRemove(playerId),
+            waitingPlayers: arrayRemove(playerData),
+            readyPlayers: arrayRemove(playerId),
+          }).catch(error => console.error("Error removing player on visibility change:", error));
+        }
+      };
+
+      const handleBeforeUnload = () => {
+        if (playerId && sessionId) {
+          // Start the cleanup operation without awaiting (browsers may allow some time for async operations)
+          updateDoc(doc(db, "sessions", sessionId), {
+            players: arrayRemove(playerId),
+            waitingPlayers: arrayRemove(playerData),
+            readyPlayers: arrayRemove(playerId),
+          }).catch(error => console.error("Error removing player on tab close:", error));
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [playerId, sessionId, playerData]);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -106,22 +181,19 @@ export default function WaitScreen({ navigation, route }) {
 
   useEffect(() => {
     // Add player to waiting list when component mounts
-    const addToWaitingList = async () => {
+    const addToLists = async () => {
       try {
         await updateDoc(doc(db, "sessions", sessionId), {
-          waitingPlayers: arrayUnion({
-            studentId,
-            name: studentName,
-            playerId,
-            joinedAt: Date.now(),
-          }),
+          players: arrayUnion(playerId),
+          waitingPlayers: arrayUnion(playerData),
+          readyPlayers: arrayUnion(playerId),
         });
       } catch (error) {
-        console.error("Error adding to waiting list:", error);
+        console.error("Error adding to lists:", error);
       }
     };
 
-    addToWaitingList();
+    addToLists();
 
     // Listen for game start
     const unsubscribe = onSnapshot(doc(db, "sessions", sessionId), (doc) => {
@@ -141,8 +213,23 @@ export default function WaitScreen({ navigation, route }) {
       }
     });
 
-    return () => unsubscribe();
-  }, [sessionId, studentId, studentName, playerId]);
+    return () => {
+      unsubscribe();
+      // Remove player from all lists when component unmounts
+      const removeFromLists = async () => {
+        try {
+          await updateDoc(doc(db, "sessions", sessionId), {
+            players: arrayRemove(playerId),
+            waitingPlayers: arrayRemove(playerData),
+            readyPlayers: arrayRemove(playerId),
+          });
+        } catch (error) {
+          console.error("Error removing from lists:", error);
+        }
+      };
+      removeFromLists();
+    };
+  }, [sessionId, studentId, studentName, playerId, playerData]);
 
   useEffect(() => {
     // Create spinning animation

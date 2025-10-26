@@ -11,10 +11,12 @@ import {
   Easing,
   Dimensions,
   TextInput,
+  AppState,
 } from "react-native";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
 
 const { width } = Dimensions.get("window");
@@ -60,6 +62,65 @@ export default function NameScreen({ navigation, route }) {
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
   }, []);
+
+  // Handle app state changes to cleanup on app close/background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (playerId && sessionId) {
+          const removePlayer = async () => {
+            try {
+              const sessionDoc = doc(db, "sessions", sessionId);
+              await updateDoc(sessionDoc, {
+                players: arrayRemove(playerId),
+                readyPlayers: arrayRemove(playerId),
+              });
+              console.log("Player removed from session due to app close/background");
+            } catch (error) {
+              console.error("Error removing player from session:", error);
+            }
+          };
+          removePlayer();
+        }
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [playerId, sessionId]);
+
+  // Handle browser tab close and visibility changes for web version
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const handleVisibilityChange = () => {
+        if (document.hidden && playerId && sessionId) {
+          updateDoc(doc(db, "sessions", sessionId), {
+            players: arrayRemove(playerId),
+            readyPlayers: arrayRemove(playerId),
+          }).catch(error => console.error("Error removing player on visibility change:", error));
+        }
+      };
+
+      const handleBeforeUnload = () => {
+        if (playerId && sessionId) {
+          // Start the cleanup operation without awaiting (browsers may allow some time for async operations)
+          updateDoc(doc(db, "sessions", sessionId), {
+            players: arrayRemove(playerId),
+            readyPlayers: arrayRemove(playerId),
+          }).catch(error => console.error("Error removing player on tab close:", error));
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [playerId, sessionId]);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -121,7 +182,25 @@ export default function NameScreen({ navigation, route }) {
     }
 
     fetchStudents();
-  }, []);
+
+    // Cleanup: remove player from session when component unmounts
+    return () => {
+      if (playerId && sessionId) {
+        const removePlayer = async () => {
+          try {
+            const sessionDoc = doc(db, "sessions", sessionId);
+            await updateDoc(sessionDoc, {
+              players: arrayRemove(playerId),
+            });
+            console.log("Player removed from session on NameScreen unmount");
+          } catch (error) {
+            console.error("Error removing player from session:", error);
+          }
+        };
+        removePlayer();
+      }
+    };
+  }, [playerId, sessionId]);
 
   useEffect(() => {
     if (wrongPassword) {
@@ -429,7 +508,18 @@ function StudentCard({
     }).start();
   }, []);
 
-  const handlePress = () => {
+  const handlePress = async () => {
+    // Play sound effect
+    try {
+      const { sound: popSound } = await Audio.Sound.createAsync(
+        require("../assets/audio/pop.mp3"),
+        { shouldPlay: true }
+      );
+      // Note: We don't set state for popSound since it's a one-time play
+    } catch (error) {
+      console.error("Error playing pop sound:", error);
+    }
+
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,

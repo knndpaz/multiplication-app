@@ -13,7 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
 const { width, height } = Dimensions.get("window");
 
@@ -143,29 +143,93 @@ export default function ResultScreen({ route, navigation }) {
 
   const loadQuestionResults = async () => {
     try {
-      // Get session data to retrieve questions
+      // Get session data
       const sessionDoc = await getDoc(doc(db, "sessions", sessionId));
-      if (sessionDoc.exists()) {
-        const sessionData = sessionDoc.data();
-        const questions = sessionData.questions || [];
+      if (!sessionDoc.exists()) {
+        console.error("Session not found!");
+        return;
+      }
 
-        // Find this student's answers
-        const studentAnswers = sessionData.studentAnswers?.[studentId] || {};
+      const sessionData = sessionDoc.data();
+      const level = sessionData.level;
+      const levelKey = level?.toLowerCase().replace(" ", "-");
+      const teacherUid = "rTPhhHNRT5gMWFsZWdrtmpUVhWd2";
 
-        // Create question results array
-        const results = questions.map((question, index) => {
-          const studentAnswer = studentAnswers[index];
-          const isCorrect = studentAnswer === question.answer;
-
-          return {
-            question: `${question.num1} × ${question.num2} = ?`,
-            userAnswer: studentAnswer || "No answer",
-            correctAnswer: question.answer,
-            isCorrect: isCorrect,
-          };
+      // Fetch questions from Firestore
+      const snap = await getDocs(
+        collection(db, "questions", teacherUid, levelKey)
+      );
+      const questions = [];
+      snap.forEach((doc) => {
+        const data = doc.data();
+        questions.push({
+          ...data,
+          id: doc.id,
         });
+      });
+
+      // Find this student's score data
+      const studentScore = sessionData.scores?.find(s => s.studentId === studentId);
+
+      if (studentScore && studentScore.questionResults) {
+        // Use the questionResults from the saved score data
+        const results = studentScore.questionResults.map((result, index) => {
+          let question = null;
+          if (result.questionId) {
+            question = questions.find(q => q.id === result.questionId);
+          }
+          if (!question && questions[index]) {
+            question = questions[index];
+          }
+          if (question) {
+            let num1 = question.num1;
+            let num2 = question.num2;
+            let answer = question.answer;
+            // If num1 and num2 are not present, parse from question string
+            if (num1 == null || num2 == null) {
+              const match = question.question?.match(/What is (\d+) x (\d+)\?/);
+              if (match) {
+                num1 = parseInt(match[1]);
+                num2 = parseInt(match[2]);
+                answer = question.answer || (num1 * num2).toString();
+              }
+            }
+            if (num1 != null && num2 != null) {
+              return {
+                question: `${num1} × ${num2} = ?`,
+                userAnswer: result.userAnswer || (result.isCorrect ? answer : "Incorrect"),
+                correctAnswer: answer,
+                isCorrect: result.isCorrect,
+              };
+            }
+          }
+          return null;
+        }).filter(Boolean);
 
         setQuestionResults(results);
+      } else {
+        // Fallback: use basic score data if available
+        if (studentScore) {
+          const totalQuestions = studentScore.totalQuestions || 0;
+          const correctAnswers = studentScore.correctAnswers || 0;
+          const results = [];
+          for (let i = 0; i < totalQuestions; i++) {
+            const question = questions[i];
+            if (question) {
+              const isCorrect = i < correctAnswers; // Assume first correctAnswers are correct
+              results.push({
+                question: `${question.num1} × ${question.num2} = ?`,
+                userAnswer: isCorrect ? question.answer : "Incorrect",
+                correctAnswer: question.answer,
+                isCorrect: isCorrect,
+              });
+            }
+          }
+          setQuestionResults(results);
+        } else {
+          // No score data, show empty
+          setQuestionResults([]);
+        }
       }
     } catch (error) {
       console.error("Error loading question results:", error);

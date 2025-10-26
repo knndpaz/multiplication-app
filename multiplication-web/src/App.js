@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "./firebase";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
 import Reports from "./Reports";
@@ -52,7 +54,19 @@ function App() {
   };
 
   // Function to close session completely
-  const closeSession = () => {
+  const closeSession = async () => {
+    if (sessionId) {
+      try {
+        // Update session status to ended
+        await updateDoc(doc(db, "sessions", sessionId), {
+          status: "ended",
+          endedAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Error updating session status:", error);
+      }
+    }
+
     setShowSessionModal(false);
     setShowRankingModal(false);
     setSessionCode(null);
@@ -81,19 +95,43 @@ function App() {
         <Route path="/signup" element={<Signup onSignup={handleLogin} />} />
         <Route
           path="/reports"
-          element={<Reports user={user} onLogout={handleLogout} />}
+          element={
+            loggedIn ? (
+              <Reports user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
         />
         <Route
           path="/students"
-          element={<Students user={user} onLogout={handleLogout} />}
+          element={
+            loggedIn ? (
+              <Students user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
         />
         <Route
           path="/games/:level/edit"
-          element={<GameEditor user={user} onLogout={handleLogout} />}
+          element={
+            loggedIn ? (
+              <GameEditor user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
         />
         <Route
           path="/student/:studentId"
-          element={<StudentAnalytics user={user} onLogout={handleLogout} />}
+          element={
+            loggedIn ? (
+              <StudentAnalytics user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
         />
       </Routes>
 

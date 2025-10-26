@@ -17,6 +17,7 @@ import {
   addDoc,
   serverTimestamp,
   getDocs,
+  collectionGroup,
 } from "firebase/firestore";
 import { getSessionAnalytics } from "./analytics";
 
@@ -48,12 +49,10 @@ function Dashboard({ user, onLogout, onStartSession }) {
       const data = await getSessionAnalytics();
       setAnalytics(data);
 
-      // Load total students
+      // Load total students from all users
       if (user?.uid) {
         try {
-          const studentsSnap = await getDocs(
-            collection(db, "students", user.uid, "list")
-          );
+          const studentsSnap = await getDocs(collectionGroup(db, "list"));
           setTotalStudents(studentsSnap.size);
         } catch (err) {
           console.error("Error fetching students:", err);

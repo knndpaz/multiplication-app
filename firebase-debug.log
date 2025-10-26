@@ -1,0 +1,29 @@
+[debug] [2025-10-26T02:24:13.637Z] ----------------------------------------------------------------------
+[debug] [2025-10-26T02:24:13.639Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\kmedu\AppData\Local\npm-cache\_npx\ba4f1959e38407b5\node_modules\firebase-tools\lib\bin\firebase.js init dataconnect --project demo-no-project
+[debug] [2025-10-26T02:24:13.639Z] CLI Version:   14.22.0
+[debug] [2025-10-26T02:24:13.640Z] Platform:      win32
+[debug] [2025-10-26T02:24:13.640Z] Node Version:  v20.18.0
+[debug] [2025-10-26T02:24:13.640Z] Time:          Sun Oct 26 2025 10:24:13 GMT+0800 (Philippine Standard Time)
+[debug] [2025-10-26T02:24:13.640Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\kmedu\multiplication-app
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[info] Skipping Firebase project setup because a demo project is provided
+[info] 
+=== Dataconnect Setup
+[info] +  dataconnect: Detected existing apps multiplication-web (web), multiplication (web) 

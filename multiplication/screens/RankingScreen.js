@@ -13,7 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
 
 const { width, height } = Dimensions.get("window");
 
@@ -95,28 +95,27 @@ export default function RankingScreen({ route, navigation }) {
       return;
     }
 
+    const rankingsRef = collection(db, "sessions", sessionId, "rankings");
+    const q = query(rankingsRef, orderBy("score", "desc"), orderBy("finishedAt", "asc"));
+
     const unsub = onSnapshot(
-      doc(db, "sessions", sessionId),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          const scoresArr = Array.isArray(data?.scores) ? data.scores : [];
+      q,
+      (querySnapshot) => {
+        const rankingsArr = [];
+        querySnapshot.forEach((doc) => {
+          rankingsArr.push({ id: doc.id, ...doc.data() });
+        });
 
-          // Find current student's data
-          const currentStudent = scoresArr.find(
-            (score) => score.studentId === studentId
-          );
-          setCurrentStudentData(currentStudent);
+        // Find current student's data
+        const currentStudent = rankingsArr.find(
+          (ranking) => ranking.id === studentId
+        );
+        setCurrentStudentData(currentStudent);
 
-          // Sort by score descending, then finishedAt ascending
-          scoresArr.sort(
-            (a, b) => b.score - a.score || a.finishedAt - b.finishedAt
-          );
-          setScores(scoresArr);
-        }
+        setScores(rankingsArr);
       },
       (error) => {
-        console.error("Error listening to session:", error);
+        console.error("Error listening to rankings:", error);
       }
     );
 
@@ -299,10 +298,10 @@ export default function RankingScreen({ route, navigation }) {
         ) : (
           scores.map((rank, idx) => (
             <RankCard
-              key={`${rank.studentId}-${idx}`}
+              key={`${rank.id}-${idx}`}
               rank={rank}
               index={idx}
-              isCurrentStudent={rank.studentId === studentId}
+              isCurrentStudent={rank.id === studentId}
               delay={idx * 50}
             />
           ))

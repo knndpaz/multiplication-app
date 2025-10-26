@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -127,6 +128,17 @@ export default function PasswordScreen({ navigation, route }) {
         studentSnap.exists() &&
         String(studentSnap.data().password).trim() === String(password).trim()
       ) {
+        // Play success sound
+        try {
+          const { sound: successSound } = await Audio.Sound.createAsync(
+            require("../assets/audio/pop.mp3"),
+            { shouldPlay: true }
+          );
+          // Note: We don't set state for successSound since it's a one-time play
+        } catch (error) {
+          console.error("Error playing success sound:", error);
+        }
+
         // Success animation
         Animated.sequence([
           Animated.timing(buttonScale, {

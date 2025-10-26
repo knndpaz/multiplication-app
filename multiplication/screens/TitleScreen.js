@@ -10,12 +10,15 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function TitleScreen({ navigation }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(true);
   const [isPlayHovered, setIsPlayHovered] = useState(false);
+  const [sound, setSound] = useState(null);
   const [floatingElements] = useState(() =>
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -41,7 +44,61 @@ export default function TitleScreen({ navigation }) {
     Font.loadAsync({
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
-  }, []);
+
+    // Start background music immediately if enabled
+    if (isMusicOn) {
+      playBackgroundMusic();
+    }
+  }, [isMusicOn]);
+
+  useEffect(() => {
+    if (!fontsLoaded && isMusicOn && !sound) {
+      // Ensure music plays if fonts aren't loaded yet but music is on
+      playBackgroundMusic();
+    } else if (!isMusicOn && sound) {
+      sound.unloadAsync();
+      setSound(null);
+    }
+  }, [fontsLoaded, isMusicOn, sound]);
+
+  // Cleanup sound when component unmounts
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+        setSound(null);
+      }
+    };
+  }, [sound]);
+
+  // Handle focus effect to restart music when returning to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      if (fontsLoaded && isMusicOn) {
+        playBackgroundMusic();
+      }
+      return () => {
+        // Stop music when leaving the screen
+        if (sound) {
+          sound.unloadAsync();
+          setSound(null);
+        }
+      };
+    }, [fontsLoaded, isMusicOn])
+  );
+
+  const playBackgroundMusic = async () => {
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require("../assets/audio/431. Cartoon.mp3"),
+        { isLooping: true }
+      );
+      await newSound.playAsync();
+      setSound(newSound);
+    } catch (error) {
+      console.error("Error loading sound:", error);
+    }
+  };
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -151,7 +208,21 @@ export default function TitleScreen({ navigation }) {
     ]).start();
   };
 
-  const handlePlayPress = () => {
+  const handlePlayPress = async () => {
+    // Play sound effect
+    try {
+      const { sound: popSound } = await Audio.Sound.createAsync(
+        require("../assets/audio/pop.mp3")
+      );
+      await popSound.playAsync();
+      // Unload after playing to free memory
+      setTimeout(() => {
+        popSound.unloadAsync();
+      }, 1000);
+    } catch (error) {
+      console.error("Error playing pop sound:", error);
+    }
+
     Animated.parallel([
       Animated.sequence([
         Animated.timing(playButtonScale, {
@@ -182,9 +253,16 @@ export default function TitleScreen({ navigation }) {
     });
   };
 
-  const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
-    // Music toggle logic will be added during development
+  const toggleMusic = async () => {
+    const newMusicState = !isMusicOn;
+    setIsMusicOn(newMusicState);
+
+    if (newMusicState) {
+      await playBackgroundMusic();
+    } else if (sound) {
+      await sound.unloadAsync();
+      setSound(null);
+    }
   };
 
   const logoRotation = logoRotate.interpolate({

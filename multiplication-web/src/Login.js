@@ -36,6 +36,7 @@ function Login({ onLogin }) {
         profile.firstname = data.firstname;
         profile.lastname = data.lastname;
         profile.username = data.username;
+        profile.role = data.role;
       }
       onLogin(profile);
     } catch (err) {

@@ -406,8 +406,16 @@ function StudentAnalytics({ user, onLogout }) {
               </div>
               <div className="performance-status">
                 <div className="status-header">
-                  <span className="material-icons">emoji_events</span>
-                  <h4>Excellent Performance!</h4>
+                  <span className="material-icons">
+                    {analytics.overallProgress >= 90 ? 'emoji_events' :
+                     analytics.overallProgress >= 75 ? 'trending_up' :
+                     analytics.overallProgress >= 50 ? 'warning' : 'error'}
+                  </span>
+                  <h4>
+                    {analytics.overallProgress >= 90 ? 'Excellent Performance!' :
+                     analytics.overallProgress >= 75 ? 'Good Performance' :
+                     analytics.overallProgress >= 50 ? 'Needs Work' : 'Needs Improvement'}
+                  </h4>
                 </div>
                 <p>{analytics.performanceMessage}</p>
               </div>

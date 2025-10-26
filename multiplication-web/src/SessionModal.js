@@ -20,6 +20,7 @@ function SessionModal({
 }) {
   const [playerCount, setPlayerCount] = React.useState(0);
   const [waitingPlayers, setWaitingPlayers] = React.useState([]);
+  const [readyPlayers, setReadyPlayers] = React.useState([]);
 
   // Listen for player count changes
   React.useEffect(() => {
@@ -31,6 +32,7 @@ function SessionModal({
         const data = docSnap.data();
         setPlayerCount(data?.players?.length || 0);
         setWaitingPlayers(data?.waitingPlayers || []);
+        setReadyPlayers(data?.readyPlayers || []);
       }
     );
 
@@ -111,45 +113,48 @@ function SessionModal({
                   <div className="stat-content">
                     <div className="stat-label">Ready to Play</div>
                     <div className="stat-value stat-value-green">
-                      {waitingPlayers.length}
+                      {readyPlayers.length}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {waitingPlayers.length > 0 ? (
-                <div className="waiting-players-section">
-                  <div className="section-header">
-                    <span className="material-icons">people</span>
-                    <h4>Players Ready ({waitingPlayers.length})</h4>
-                  </div>
-                  <div className="waiting-players-list">
-                    {waitingPlayers.map((player, idx) => (
-                      <div key={idx} className="waiting-player-card">
-                        <div className="player-avatar">
-                          {player.name?.charAt(0).toUpperCase() || "?"}
-                        </div>
-                        <div className="player-info">
-                          <div className="player-name">{player.name}</div>
-                          <div className="player-status">
-                            <span className="status-dot"></span>
-                            Ready
+              {(() => {
+                const actualReadyPlayers = waitingPlayers.filter(player => readyPlayers.includes(player.playerId));
+                return actualReadyPlayers.length > 0 ? (
+                  <div className="waiting-players-section">
+                    <div className="section-header">
+                      <span className="material-icons">people</span>
+                      <h4>Players Ready ({actualReadyPlayers.length})</h4>
+                    </div>
+                    <div className="waiting-players-list">
+                      {actualReadyPlayers.map((player, idx) => (
+                        <div key={idx} className="waiting-player-card">
+                          <div className="player-avatar">
+                            {player.name?.charAt(0).toUpperCase() || "?"}
                           </div>
+                          <div className="player-info">
+                            <div className="player-name">{player.name}</div>
+                            <div className="player-status">
+                              <span className="status-dot"></span>
+                              Ready
+                            </div>
+                          </div>
+                          <span className="material-icons check-icon">
+                            check_circle
+                          </span>
                         </div>
-                        <span className="material-icons check-icon">
-                          check_circle
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <span className="material-icons">hourglass_empty</span>
-                  <p>Waiting for players to join...</p>
-                  <small>Share the session code with students</small>
-                </div>
-              )}
+                ) : (
+                  <div className="empty-state">
+                    <span className="material-icons">hourglass_empty</span>
+                    <p>Waiting for players to join...</p>
+                    <small>Share the session code with students</small>
+                  </div>
+                );
+              })()}
 
               <div className="session-actions">
                 <button
