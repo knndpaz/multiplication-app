@@ -30,6 +30,9 @@ function generateSessionCode() {
 function Dashboard({ user, onLogout, onStartSession }) {
   const navigate = useNavigate();
 
+  // Session state
+  const [currentSessionCode, setCurrentSessionCode] = React.useState(null);
+
   // Analytics state
   const [analytics, setAnalytics] = React.useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(true);
@@ -158,6 +161,9 @@ function Dashboard({ user, onLogout, onStartSession }) {
       gameStarted: false,
     });
 
+    // Set the current session code for Play button
+    setCurrentSessionCode(code);
+
     // Call the parent function to start session at App level
     onStartSession(code, sessionRef.id);
   }
@@ -280,7 +286,7 @@ function Dashboard({ user, onLogout, onStartSession }) {
                       <button
                         className="game-action-btn play-btn"
                         onClick={() =>
-                          window.open("http://localhost:8081", "_blank")
+                          window.open(currentSessionCode ? `http://localhost:8081?session=${currentSessionCode}` : "http://localhost:8081", "_blank", "width=900,height=600,scrollbars=yes,resizable=yes")
                         }
                       >
                         <span className="material-icons">play_arrow</span>

@@ -11,6 +11,7 @@ import Signup from "./Signup";
 import StudentAnalytics from "./StudentAnalytics";
 import SessionModal from "./SessionModal";
 import RankingModal from "./RankingModal"; // ADD THIS IMPORT
+import TestPlay from "./TestPlay";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -128,6 +129,16 @@ function App() {
           element={
             loggedIn ? (
               <StudentAnalytics user={user} onLogout={handleLogout} />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/games/:level/play"
+          element={
+            loggedIn ? (
+              <TestPlay user={user} />
             ) : (
               <Login onLogin={handleLogin} />
             )

@@ -11,6 +11,7 @@ import {
   Easing,
   Keyboard,
   AppState,
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
@@ -26,7 +27,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 
-export default function CodeScreen({ navigation }) {
+export default function CodeScreen({ navigation, route }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -35,6 +36,10 @@ export default function CodeScreen({ navigation }) {
   const [joinedPlayerId, setJoinedPlayerId] = useState(null);
   const [joinedSessionId, setJoinedSessionId] = useState(null);
   const hasJoinedSuccessfullyRef = useRef(false);
+  const hasAutoJoinedRef = useRef(false);
+
+  const { session } = route.params || {};
+  const isAutoJoin = !!session;
   const [floatingElements] = useState(() =>
     Array.from({ length: 15 }, (_, i) => ({
       id: i,
@@ -60,6 +65,15 @@ export default function CodeScreen({ navigation }) {
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
   }, []);
+
+  useEffect(() => {
+    // If session code is provided via URL, auto-fill and auto-join
+    if (session && session.trim() && fontsLoaded && !hasAutoJoinedRef.current) {
+      hasAutoJoinedRef.current = true;
+      setCodeInput(session.trim());
+      handleJoinSession(session.trim());
+    }
+  }, [session, fontsLoaded]);
 
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
@@ -184,10 +198,13 @@ export default function CodeScreen({ navigation }) {
     ]).start();
   };
 
-  const handleJoinSession = async () => {
-    if (!codeInput.trim()) {
-      setJoinError("Please enter a session code");
-      shakeInput();
+  const handleJoinSession = async (providedCode) => {
+    const codeToUse = providedCode || codeInput.trim();
+    if (!codeToUse) {
+      if (!isAutoJoin) {
+        setJoinError("Please enter a session code");
+        shakeInput();
+      }
       return;
     }
 
@@ -196,17 +213,19 @@ export default function CodeScreen({ navigation }) {
     Keyboard.dismiss();
 
     try {
-      console.log("Looking for session with code:", codeInput);
+      console.log("Looking for session with code:", codeToUse);
 
       const q = query(
         collection(db, "sessions"),
-        where("code", "==", codeInput.trim())
+        where("code", "==", codeToUse)
       );
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        setJoinError("Session not found. Please check the code.");
-        shakeInput();
+        if (!isAutoJoin) {
+          setJoinError("Session not found. Please check the code.");
+          shakeInput();
+        }
         setIsJoining(false);
         return;
       }
@@ -217,8 +236,10 @@ export default function CodeScreen({ navigation }) {
       console.log("Found session:", sessionData);
 
       if (sessionData.status === "completed") {
-        setJoinError("This session has already ended.");
-        shakeInput();
+        if (!isAutoJoin) {
+          setJoinError("This session has already ended.");
+          shakeInput();
+        }
         setIsJoining(false);
         return;
       }
@@ -237,19 +258,29 @@ export default function CodeScreen({ navigation }) {
 
       console.log("Successfully joined session, navigating to SelectCharacter");
 
-      // Success animation
-      Animated.spring(inputScale, {
-        toValue: 1.1,
-        friction: 3,
-        useNativeDriver: true,
-      }).start(() => {
+      if (isAutoJoin) {
+        // For auto-join, navigate immediately without animation
         navigation.navigate("SelectCharacter", {
           sessionId: sessionDoc.id,
           level: sessionData.level,
           playerId,
           code: codeInput.trim(),
         });
-      });
+      } else {
+        // Success animation for manual join
+        Animated.spring(inputScale, {
+          toValue: 1.1,
+          friction: 3,
+          useNativeDriver: true,
+        }).start(() => {
+          navigation.navigate("SelectCharacter", {
+            sessionId: sessionDoc.id,
+            level: sessionData.level,
+            playerId,
+            code: codeInput.trim(),
+          });
+        });
+      }
     } catch (error) {
       console.error("Error joining session:", error);
       setJoinError("Failed to join session. Please try again.");
@@ -296,6 +327,29 @@ export default function CodeScreen({ navigation }) {
           style={StyleSheet.absoluteFillObject}
         />
         <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  // If auto-joining, show loading screen
+  if (isAutoJoin && isJoining) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <LinearGradient
+          colors={["#4fd1ff", "#5b9cf5", "#ff5fcf"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={[styles.instructionText, { marginTop: 20 }]}>
+          Joining session...
+        </Text>
       </View>
     );
   }

@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import TitleScreen from './screens/TitleScreen';
+import AutoJoinScreen from './screens/AutoJoinScreen';
 import CodeScreen from './screens/CodeScreen';
 import SelectCharacter from './screens/SelectCharacter';
 import NameScreen from './screens/NameScreen';
@@ -15,12 +16,26 @@ import ResultScreen from './screens/ResultScreen';
 
 const Stack = createNativeStackNavigator();
 
+const getUrlParams = () => {
+  if (typeof window !== 'undefined' && window.location) {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      session: params.get('session'),
+    };
+  }
+  return {};
+};
+
+const urlParams = getUrlParams();
+const initialRoute = 'TitleScreen';
+
 export default function App() {
   return (
     <NavigationContainer>
       <StatusBar style="auto" />
-      <Stack.Navigator initialRouteName="TitleScreen" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="TitleScreen" component={TitleScreen} />
+      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="TitleScreen" component={TitleScreen} initialParams={{ session: urlParams.session }} />
+        <Stack.Screen name="AutoJoinScreen" component={AutoJoinScreen} />
         <Stack.Screen name="CodeScreen" component={CodeScreen} />
         <Stack.Screen name="SelectCharacter" component={SelectCharacter} />
         <Stack.Screen name="NameScreen" component={NameScreen} />

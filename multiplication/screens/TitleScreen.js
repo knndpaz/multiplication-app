@@ -14,7 +14,7 @@ import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { useFocusEffect } from "@react-navigation/native";
 
-export default function TitleScreen({ navigation }) {
+export default function TitleScreen({ navigation, route }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(true);
   const [isPlayHovered, setIsPlayHovered] = useState(false);
@@ -249,7 +249,13 @@ export default function TitleScreen({ navigation }) {
         }),
       ]),
     ]).start(() => {
-      setTimeout(() => navigation?.navigate("CodeScreen"), 200);
+      // Check if there's a session code in route params (passed from App.js)
+      const { session } = route.params || {};
+      if (session) {
+        setTimeout(() => navigation?.navigate("CodeScreen", { session }), 200);
+      } else {
+        setTimeout(() => navigation?.navigate("CodeScreen"), 200);
+      }
     });
   };
 
