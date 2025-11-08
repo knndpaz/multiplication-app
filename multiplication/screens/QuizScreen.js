@@ -24,18 +24,21 @@ const correctSounds = [
 
 const wrongSounds = [
   require("../assets/Voice Records/Wrong answer! .m4a"),
+  require("../assets/Voice Records/Nice try! .m4a"),
 ];
 
 const timeoutSound = require("../assets/Voice Records/Times up! .m4a");
 
-const playSound = async (soundFile) => {
-  try {
-    const { sound } = await Audio.Sound.createAsync(soundFile);
-    await sound.playAsync();
-    setTimeout(() => sound.unloadAsync(), 2000);
-  } catch (error) {
-    console.error("Error playing sound:", error);
-  }
+const playSound = (soundFile) => {
+  Audio.Sound.createAsync(soundFile).then(({ sound }) => {
+    sound.playAsync().then(() => {
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    });
+  }).catch(error => console.error("Error playing sound:", error));
 };
 
 import { db } from "../firebase";
