@@ -312,7 +312,7 @@ export default function QuizScreen({ route, navigation }) {
         const sessionData = sessionDoc.data();
         const level = sessionData.level;
         const levelKey = level?.toLowerCase().replace(" ", "-");
-        const teacherUid = "rTPhhHNRT5gMWFsZWdrtmpUVhWd2";
+        const teacherUid = sessionData.teacherUid;
 
         if (!levelKey) {
           console.error("Level key is empty!");

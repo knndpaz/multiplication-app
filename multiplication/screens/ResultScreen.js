@@ -153,7 +153,7 @@ export default function ResultScreen({ route, navigation }) {
       const sessionData = sessionDoc.data();
       const level = sessionData.level;
       const levelKey = level?.toLowerCase().replace(" ", "-");
-      const teacherUid = "rTPhhHNRT5gMWFsZWdrtmpUVhWd2";
+      const teacherUid = sessionData.teacherUid;
 
       // Fetch questions from Firestore
       const snap = await getDocs(

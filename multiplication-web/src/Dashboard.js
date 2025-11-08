@@ -159,6 +159,7 @@ function Dashboard({ user, onLogout, onStartSession }) {
       waitingPlayers: [],
       status: "waiting",
       gameStarted: false,
+      teacherUid: user.uid,
     });
 
     // Set the current session code for Play button
