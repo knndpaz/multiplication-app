@@ -16,6 +16,28 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
+
+const correctSounds = [
+  require("../assets/Voice Records/Correct! .m4a"),
+  require("../assets/Voice Records/Very Good! .m4a"),
+];
+
+const wrongSounds = [
+  require("../assets/Voice Records/Wrong answer! .m4a"),
+];
+
+const timeoutSound = require("../assets/Voice Records/Times up! .m4a");
+
+const playSound = async (soundFile) => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(soundFile);
+    await sound.playAsync();
+    setTimeout(() => sound.unloadAsync(), 2000);
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  }
+};
+
 import { db } from "../firebase";
 import {
   collection,
@@ -356,29 +378,13 @@ export default function QuizScreen({ route, navigation }) {
       );
 
       if (isCorrect) {
-        // Play correct sound
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require("../assets/audio/Check mark sound effect.mp3")
-          );
-          await sound.playAsync();
-          setTimeout(() => sound.unloadAsync(), 2000);
-        } catch (error) {
-          console.error("Error playing correct sound:", error);
-        }
+        const randomSound = correctSounds[Math.floor(Math.random() * correctSounds.length)];
+        playSound(randomSound);
         setScore((prev) => prev + 1);
         setShowCheck(true);
       } else {
-        // Play wrong sound
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require("../assets/audio/Wrong Answer Sound effect.mp3")
-          );
-          await sound.playAsync();
-          setTimeout(() => sound.unloadAsync(), 2000);
-        } catch (error) {
-          console.error("Error playing wrong sound:", error);
-        }
+        const randomSound = wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
+        playSound(randomSound);
         setShowWrong(true);
       }
 
@@ -419,6 +425,8 @@ export default function QuizScreen({ route, navigation }) {
             );
           }
 
+          // Play timeout sound instead of wrong sound
+          playSound(timeoutSound);
           setShowWrong(true);
 
           timeoutRef.current = setTimeout(() => {
@@ -465,29 +473,13 @@ export default function QuizScreen({ route, navigation }) {
         );
 
         if (isCorrect) {
-          // Play correct sound
-          try {
-            const { sound } = await Audio.Sound.createAsync(
-              require("../assets/audio/Check mark sound effect.mp3")
-            );
-            await sound.playAsync();
-            setTimeout(() => sound.unloadAsync(), 2000);
-          } catch (error) {
-            console.error("Error playing correct sound:", error);
-          }
+          const randomSound = correctSounds[Math.floor(Math.random() * correctSounds.length)];
+          playSound(randomSound);
           setScore((prev) => prev + 1);
           setShowCheck(true);
         } else {
-          // Play wrong sound
-          try {
-            const { sound } = await Audio.Sound.createAsync(
-              require("../assets/audio/Wrong Answer Sound effect.mp3")
-            );
-            await sound.playAsync();
-            setTimeout(() => sound.unloadAsync(), 2000);
-          } catch (error) {
-            console.error("Error playing wrong sound:", error);
-          }
+          const randomSound = wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
+          playSound(randomSound);
           setShowWrong(true);
         }
 

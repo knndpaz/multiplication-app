@@ -10,6 +10,7 @@ import {
   AppState,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
@@ -180,6 +181,21 @@ export default function WaitScreen({ navigation, route }) {
   }, [fontsLoaded]);
 
   useEffect(() => {
+    // Play waiting audio once when component mounts
+    const playWaitingAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Let_s wait for the teacher to start .m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing waiting audio:", error);
+      }
+    };
+
+    playWaitingAudio();
+
     // Add player to waiting list when component mounts
     const addToLists = async () => {
       try {

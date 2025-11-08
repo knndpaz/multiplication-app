@@ -51,6 +51,23 @@ export default function TitleScreen({ navigation, route }) {
     }
   }, [isMusicOn]);
 
+  // Play welcome voice audio once when component mounts
+  useEffect(() => {
+    const playAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Welcome.m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing welcome audio:", error);
+      }
+    };
+
+    playAudio();
+  }, []);
+
   useEffect(() => {
     if (!fontsLoaded && isMusicOn && !sound) {
       // Ensure music plays if fonts aren't loaded yet but music is on

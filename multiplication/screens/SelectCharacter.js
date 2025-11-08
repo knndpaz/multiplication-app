@@ -60,6 +60,23 @@ export default function SelectCharacter({ navigation, route }) {
     }).then(() => setFontsLoaded(true));
   }, []);
 
+  // Play character selection audio once when component mounts
+  useEffect(() => {
+    const playAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Please select a character .m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing character selection audio:", error);
+      }
+    };
+
+    playAudio();
+  }, []);
+
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {

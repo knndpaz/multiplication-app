@@ -66,6 +66,23 @@ export default function CodeScreen({ navigation, route }) {
     }).then(() => setFontsLoaded(true));
   }, []);
 
+  // Play session code audio once when component mounts
+  useEffect(() => {
+    const playAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Please enter session code.m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing session code audio:", error);
+      }
+    };
+
+    playAudio();
+  }, []);
+
   useEffect(() => {
     // If session code is provided via URL, auto-fill and auto-join
     if (session && session.trim() && fontsLoaded && !hasAutoJoinedRef.current) {

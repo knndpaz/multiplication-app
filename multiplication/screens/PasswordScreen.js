@@ -61,6 +61,23 @@ export default function PasswordScreen({ navigation, route }) {
     }).then(() => setFontsLoaded(true));
   }, []);
 
+  // Play password entry audio once when component mounts
+  useEffect(() => {
+    const playAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Please enter your password .m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing password entry audio:", error);
+      }
+    };
+
+    playAudio();
+  }, []);
+
   useEffect(() => {
     if (!fontsLoaded) return;
 

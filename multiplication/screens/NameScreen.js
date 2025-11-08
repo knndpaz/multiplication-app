@@ -63,6 +63,23 @@ export default function NameScreen({ navigation, route }) {
     }).then(() => setFontsLoaded(true));
   }, []);
 
+  // Play name selection audio once when component mounts
+  useEffect(() => {
+    const playAudio = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/Voice Records/Please select your name.m4a")
+        );
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+      } catch (error) {
+        console.error("Error playing name selection audio:", error);
+      }
+    };
+
+    playAudio();
+  }, []);
+
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {

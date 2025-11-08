@@ -11,9 +11,22 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
+
+const yeeeySound = require("../assets/Voice Records/Yeeey! .m4a");
+
+const playSound = async (soundFile) => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(soundFile);
+    await sound.playAsync();
+    setTimeout(() => sound.unloadAsync(), 2000);
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  }
+};
 
 const { width, height } = Dimensions.get("window");
 
@@ -44,6 +57,11 @@ export default function RankingScreen({ route, navigation }) {
     Font.loadAsync({
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => setFontsLoaded(true));
+  }, []);
+
+  // Play Yeeey sound when screen loads
+  useEffect(() => {
+    playSound(yeeeySound);
   }, []);
 
   useEffect(() => {
