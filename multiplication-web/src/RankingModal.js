@@ -7,24 +7,26 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import { useSession } from './SessionContext';
 
 const db = getFirestore();
 
 function RankingModal({
   sessionCode,
   sessionId,
-  isMinimized,
-  onMinimize,
-  onExpand,
   onClose,
 }) {
+  const { showRankingModal, setShowRankingModal, isRankingMinimized, setIsRankingMinimized, closeSession } = useSession();
+
+  const onExpand = () => setIsRankingMinimized(false);
+  const onMinimize = () => setIsRankingMinimized(true);
   const [rankings, setRankings] = React.useState([]);
   const [sessionData, setSessionData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
   // Listen for real-time ranking updates
   React.useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !showRankingModal) return;
 
     setLoading(true);
 
@@ -57,7 +59,10 @@ function RankingModal({
       sessionUnsub();
       rankingsUnsub();
     };
-  }, [sessionId]);
+  }, [sessionId, showRankingModal]);
+
+  // Don't render anything if ranking modal is not active
+  if (!showRankingModal) return null;
 
   const getMedalIcon = (rank) => {
     switch (rank) {
@@ -90,37 +95,29 @@ function RankingModal({
 
   return (
     <>
-      <div
-        className={`ranking-modal-overlay ${
-          isMinimized ? "minimized-overlay" : ""
-        }`}
-      >
-        <div className={`ranking-modal ${isMinimized ? "minimized" : ""}`}>
-          {!isMinimized ? (
+      <div className={`ranking-modal-overlay ${isRankingMinimized ? 'minimized-overlay' : ''}`}>
+        <div className={`ranking-modal ${isRankingMinimized ? 'minimized' : ''}`}>
+          {showRankingModal && !isRankingMinimized ? (
             <>
               <div className="ranking-modal-header">
-                <div className="header-left">
-                  <div className="live-icon-wrapper">
-                    <span className="material-icons">leaderboard</span>
-                    <span className="live-pulse"></span>
-                  </div>
-                  <div>
-                    <h2>Live Rankings</h2>
-                    <p className="header-subtitle">
-                      Real-time scores • Session {sessionCode}
-                    </p>
-                  </div>
-                </div>
-                <div className="header-actions">
-                  <button
-                    className="minimize-btn"
-                    onClick={onMinimize}
-                    title="Minimize"
-                  >
-                    <span className="material-icons">minimize</span>
-                  </button>
-                </div>
+            <div className="header-left">
+              <div className="live-icon-wrapper">
+                <span className="material-icons">leaderboard</span>
+                <span className="live-pulse"></span>
               </div>
+              <div>
+                <h2>Live Rankings</h2>
+                <p className="header-subtitle">
+                  Real-time scores • Session {sessionCode}
+                </p>
+              </div>
+            </div>
+            <div className="header-actions">
+              <button className="minimize-btn" onClick={onMinimize}>
+                <span className="material-icons">minimize</span>
+              </button>
+            </div>
+          </div>
 
               <div className="ranking-stats-bar">
                 <div className="stat-chip">
@@ -275,7 +272,7 @@ function RankingModal({
               )}
 
               <div className="ranking-actions">
-                <button className="close-ranking-btn" onClick={onClose}>
+                <button className="close-ranking-btn" onClick={closeSession}>
                   <span className="material-icons">stop_circle</span>
                   End Session
                 </button>
@@ -399,7 +396,7 @@ function RankingModal({
           top: auto;
           left: auto;
           transform: none;
-          max-width: 350px;
+          max-width: 320px;
           padding: 16px 20px;
           cursor: pointer;
           pointer-events: auto;

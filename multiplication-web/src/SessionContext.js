@@ -23,6 +23,8 @@ export function SessionProvider({ children }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [sessionUnsubscribe, setSessionUnsubscribe] = useState(null);
+  const [showRankingModal, setShowRankingModal] = useState(false);
+  const [isRankingMinimized, setIsRankingMinimized] = useState(false);
 
   const startSession = (code, id, level, unsubscribe) => {
     console.log('Starting session:', { code, id, level });
@@ -56,13 +58,13 @@ export function SessionProvider({ children }) {
 
   const closeSession = () => {
     console.log('Closing session completely');
-    
+
     // Unsubscribe from Firebase listener
     if (sessionUnsubscribe) {
       sessionUnsubscribe();
       setSessionUnsubscribe(null);
     }
-    
+
     // Reset all session state
     setSessionCode(null);
     setSessionId(null);
@@ -75,6 +77,8 @@ export function SessionProvider({ children }) {
     setLiveScores([]);
     setCurrentQuestion(0);
     setTotalQuestions(0);
+    setShowRankingModal(false);
+    setIsRankingMinimized(false);
   };
 
   const value = {
@@ -90,6 +94,8 @@ export function SessionProvider({ children }) {
     liveScores,
     currentQuestion,
     totalQuestions,
+    showRankingModal,
+    isRankingMinimized,
 
     // Actions
     startSession,
@@ -103,6 +109,8 @@ export function SessionProvider({ children }) {
     setLiveScores,
     setCurrentQuestion,
     setTotalQuestions,
+    setShowRankingModal,
+    setIsRankingMinimized,
   };
 
   return (

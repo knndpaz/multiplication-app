@@ -12,13 +12,10 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
-import { useFocusEffect } from "@react-navigation/native";
 
 export default function TitleScreen({ navigation, route }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [isMusicOn, setIsMusicOn] = useState(true);
   const [isPlayHovered, setIsPlayHovered] = useState(false);
-  const [sound, setSound] = useState(null);
   const [floatingElements] = useState(() =>
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -43,13 +40,10 @@ export default function TitleScreen({ navigation, route }) {
     // Load fonts
     Font.loadAsync({
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
-    }).then(() => setFontsLoaded(true));
-
-    // Start background music immediately if enabled
-    if (isMusicOn) {
-      playBackgroundMusic();
-    }
-  }, [isMusicOn]);
+    }).then(() => {
+      setFontsLoaded(true);
+    });
+  }, []);
 
   // Play welcome voice audio once when component mounts
   useEffect(() => {
@@ -68,54 +62,7 @@ export default function TitleScreen({ navigation, route }) {
     playAudio();
   }, []);
 
-  useEffect(() => {
-    if (!fontsLoaded && isMusicOn && !sound) {
-      // Ensure music plays if fonts aren't loaded yet but music is on
-      playBackgroundMusic();
-    } else if (!isMusicOn && sound) {
-      sound.unloadAsync();
-      setSound(null);
-    }
-  }, [fontsLoaded, isMusicOn, sound]);
 
-  // Cleanup sound when component unmounts
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-        setSound(null);
-      }
-    };
-  }, [sound]);
-
-  // Handle focus effect to restart music when returning to this screen
-  useFocusEffect(
-    React.useCallback(() => {
-      if (fontsLoaded && isMusicOn) {
-        playBackgroundMusic();
-      }
-      return () => {
-        // Stop music when leaving the screen
-        if (sound) {
-          sound.unloadAsync();
-          setSound(null);
-        }
-      };
-    }, [fontsLoaded, isMusicOn])
-  );
-
-  const playBackgroundMusic = async () => {
-    try {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        require("../assets/audio/431. Cartoon.mp3"),
-        { isLooping: true }
-      );
-      await newSound.playAsync();
-      setSound(newSound);
-    } catch (error) {
-      console.error("Error loading sound:", error);
-    }
-  };
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -276,17 +223,7 @@ export default function TitleScreen({ navigation, route }) {
     });
   };
 
-  const toggleMusic = async () => {
-    const newMusicState = !isMusicOn;
-    setIsMusicOn(newMusicState);
 
-    if (newMusicState) {
-      await playBackgroundMusic();
-    } else if (sound) {
-      await sound.unloadAsync();
-      setSound(null);
-    }
-  };
 
   const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],
@@ -356,21 +293,7 @@ export default function TitleScreen({ navigation, route }) {
         );
       })}
 
-      {/* Music Toggle Button */}
-      <TouchableOpacity
-        style={styles.musicButton}
-        onPress={toggleMusic}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={["#FFD700", "#FFA500"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.musicButtonGradient}
-        >
-          <Text style={styles.musicIcon}>{isMusicOn ? "🎵" : "🔇"}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+
 
       {/* Content */}
       <View style={styles.content}>
@@ -454,32 +377,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     zIndex: 1,
   },
-  musicButton: {
-    position: "absolute",
-    top: 24,
-    right: 24,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    zIndex: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: "#fff",
-  },
-  musicButtonGradient: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 35,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  musicIcon: {
-    fontSize: 36,
-  },
+
   logoContainer: {
     marginTop: -50,
     marginBottom: 20,

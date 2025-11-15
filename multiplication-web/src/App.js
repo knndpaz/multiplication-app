@@ -10,10 +10,12 @@ import GameEditor from "./GameEditor";
 import Signup from "./Signup";
 import StudentAnalytics from "./StudentAnalytics";
 import SessionModal from "./SessionModal";
-import RankingModal from "./RankingModal"; // ADD THIS IMPORT
+import RankingModal from "./RankingModal";
 import TestPlay from "./TestPlay";
+import { SessionProvider, useSession } from "./SessionContext";
+import GlobalSessionModal from "./GlobalSessionModal";
 
-function App() {
+function AppContent() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -23,9 +25,7 @@ function App() {
   const [sessionId, setSessionId] = useState(null);
   const [isSessionMinimized, setIsSessionMinimized] = useState(false);
 
-  // Ranking Modal state (live game)
-  const [showRankingModal, setShowRankingModal] = useState(false);
-  const [isRankingMinimized, setIsRankingMinimized] = useState(false);
+  const { setShowRankingModal } = useSession();
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -43,15 +43,14 @@ function App() {
     setSessionId(id);
     setShowSessionModal(true);
     setIsSessionMinimized(false);
-    setShowRankingModal(false); // Ensure ranking modal is closed
   };
 
   // Function to handle game start (transition from SessionModal to RankingModal)
   const handleGameStart = () => {
     setShowSessionModal(false);
     setIsSessionMinimized(false);
+    // Show ranking modal when game starts
     setShowRankingModal(true);
-    setIsRankingMinimized(false);
   };
 
   // Function to close session completely
@@ -69,11 +68,9 @@ function App() {
     }
 
     setShowSessionModal(false);
-    setShowRankingModal(false);
     setSessionCode(null);
     setSessionId(null);
     setIsSessionMinimized(false);
-    setIsRankingMinimized(false);
   };
 
   return (
@@ -147,7 +144,7 @@ function App() {
       </Routes>
 
       {/* Session Modal (waiting room) - only show if ranking modal is not active */}
-      {showSessionModal && !showRankingModal && (
+      {showSessionModal && (
         <SessionModal
           sessionCode={sessionCode}
           sessionId={sessionId}
@@ -159,18 +156,24 @@ function App() {
         />
       )}
 
-      {/* Ranking Modal (live game) - only show after game starts */}
-      {showRankingModal && (
-        <RankingModal
-          sessionCode={sessionCode}
-          sessionId={sessionId}
-          isMinimized={isRankingMinimized}
-          onMinimize={() => setIsRankingMinimized(true)}
-          onExpand={() => setIsRankingMinimized(false)}
-          onClose={closeSession}
-        />
-      )}
+      {/* Global Session Indicator */}
+      <GlobalSessionModal />
+
+      {/* Ranking Modal (live game) */}
+      <RankingModal
+        sessionCode={sessionCode}
+        sessionId={sessionId}
+        onClose={closeSession}
+      />
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <SessionProvider>
+      <AppContent />
+    </SessionProvider>
   );
 }
 

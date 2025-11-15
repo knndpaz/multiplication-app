@@ -23,16 +23,17 @@ import {
 const { width } = Dimensions.get("window");
 
 const characters = [
-  { id: 0, src: require("../assets/player1.png"), name: "Alex" },
-  { id: 1, src: require("../assets/player2.png"), name: "Maya" },
-  { id: 2, src: require("../assets/player3.png"), name: "Leo" },
-  { id: 3, src: require("../assets/player4.png"), name: "Zoe" },
+  { id: 0, src: require("../assets/player1.png"), name: "Mia" },
+  { id: 1, src: require("../assets/player2.png"), name: "Leo" },
+  { id: 2, src: require("../assets/player3.png"), name: "Lily" },
+  { id: 3, src: require("../assets/player4.png"), name: "Nico" },
 ];
 
 export default function SelectCharacter({ navigation, route }) {
   const [selected, setSelected] = useState(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(true);
+  const [sound, setSound] = useState(null);
   const [floatingElements] = useState(() =>
     Array.from({ length: 12 }, (_, i) => ({
       id: i,
@@ -57,8 +58,14 @@ export default function SelectCharacter({ navigation, route }) {
   useEffect(() => {
     Font.loadAsync({
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
-    }).then(() => setFontsLoaded(true));
-  }, []);
+    }).then(() => {
+      setFontsLoaded(true);
+      // Start background music after fonts are loaded if enabled
+      if (isMusicOn) {
+        playBackgroundMusic();
+      }
+    });
+  }, [isMusicOn]);
 
   // Play character selection audio once when component mounts
   useEffect(() => {
@@ -135,6 +142,15 @@ export default function SelectCharacter({ navigation, route }) {
       };
     }
   }, [playerId, sessionId]);
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -214,6 +230,23 @@ export default function SelectCharacter({ navigation, route }) {
       console.error("Error playing pop sound:", error);
     }
 
+    // Play character name audio
+    try {
+      const audioFiles = {
+        Mia: require("../assets/Voice Records/Characters Name/Mia.m4a"),
+        Leo: require("../assets/Voice Records/Characters Name/Leo.m4a"),
+        Lily: require("../assets/Voice Records/Characters Name/Lily.m4a"),
+        Nico: require("../assets/Voice Records/Characters Name/Nico.m4a"),
+      };
+      const { sound: nameSound } = await Audio.Sound.createAsync(
+        audioFiles[characters[idx].name],
+        { shouldPlay: true }
+      );
+      setTimeout(() => nameSound.unloadAsync(), 5000); // Unload after 5 seconds
+    } catch (error) {
+      console.error("Error playing character name audio:", error);
+    }
+
     setSelected(idx);
 
     // Reset button scale before animating in
@@ -258,8 +291,29 @@ export default function SelectCharacter({ navigation, route }) {
     });
   };
 
+  const playBackgroundMusic = async () => {
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require("../assets/audio/431. Cartoon.mp3"),
+        { isLooping: true }
+      );
+      await newSound.playAsync();
+      setSound(newSound);
+    } catch (error) {
+      console.error("Error loading sound:", error);
+    }
+  };
+
   const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
+    const newMusicState = !isMusicOn;
+    setIsMusicOn(newMusicState);
+
+    if (newMusicState && fontsLoaded) {
+      playBackgroundMusic();
+    } else if (sound) {
+      sound.unloadAsync();
+      setSound(null);
+    }
   };
 
   if (!fontsLoaded) {

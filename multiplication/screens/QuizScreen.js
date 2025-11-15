@@ -84,6 +84,27 @@ export default function QuizScreen({ route, navigation }) {
   const intervalRef = useRef();
   const timeoutRef = useRef();
 
+  // Function to update ranking in real-time
+  const updateRanking = (currentScore) => {
+    const rankingData = {
+      name: studentName,
+      score: currentScore,
+      accuracy: questions.length > 0 ? (currentScore / questions.length) * 100 : 0,
+      correct: currentScore,
+      totalTime: Date.now() - startTime,
+      finishedAt: null,
+    };
+    const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
+    setDoc(rankingRef, rankingData).catch(error => console.error("Error updating ranking:", error));
+  };
+
+  // Update ranking whenever score changes
+  useEffect(() => {
+    if (score > 0) {
+      updateRanking(score);
+    }
+  }, [score]);
+
   // Animation values
   const [floatingElements] = useState(() =>
     Array.from({ length: 6 }, (_, i) => ({
