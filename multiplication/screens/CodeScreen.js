@@ -310,6 +310,16 @@ export default function CodeScreen({ navigation, route }) {
         return;
       }
 
+      // Prevent late joins if the teacher has already started the game
+      if (sessionData.gameStarted === true) {
+        if (!isAutoJoin) {
+          setJoinError("This session has already started. Late joiners are not allowed.");
+          shakeInput();
+        }
+        setIsJoining(false);
+        return;
+      }
+
       const playerId =
         "player-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
 

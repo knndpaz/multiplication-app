@@ -13,7 +13,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, getDoc } from "firebase/firestore";
+import { Alert } from "react-native";
 
 const { width, height } = Dimensions.get("window");
 
@@ -199,7 +200,30 @@ export default function WaitScreen({ navigation, route }) {
     // Add player to waiting list when component mounts
     const addToLists = async () => {
       try {
-        await updateDoc(doc(db, "sessions", sessionId), {
+        const sessionRef = doc(db, "sessions", sessionId);
+        const snap = await getDoc(sessionRef);
+        const data = snap?.data();
+
+        // If teacher already started the game, prevent late join
+        if (data?.gameStarted === true) {
+          Alert.alert(
+            "Session Started",
+            "This session has already started. You cannot join.",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  // Go back to root (code entry) to avoid showing waiting UI
+                  navigation.popToTop();
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+          return;
+        }
+
+        await updateDoc(sessionRef, {
           players: arrayUnion(playerId),
           waitingPlayers: arrayUnion(playerData),
           readyPlayers: arrayUnion(playerId),

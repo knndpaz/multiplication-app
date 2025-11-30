@@ -255,17 +255,26 @@ export default function QuizScreen({ route, navigation }) {
       const sessionSnap = await getDoc(sessionRef);
       const sessionData = sessionSnap.data();
 
+      // Compute final score from recorded question results to avoid
+      // relying on possibly-stale React state updates (setState is async).
+      const finalScore = Array.isArray(questionResultsRef.current)
+        ? questionResultsRef.current.filter((r) => r.isCorrect).length
+        : score;
+
+      // Sync UI state with the computed final score
+      if (finalScore !== score) setScore(finalScore);
+
       // Calculate detailed analytics
       const playerResult = {
         studentId,
         name: studentName,
-        score,
+        score: finalScore,
         totalQuestions: questions.length,
-        correctAnswers: score,
-        incorrectAnswers: questions.length - score,
-        accuracy: (score / questions.length) * 100,
+        correctAnswers: finalScore,
+        incorrectAnswers: questions.length - finalScore,
+        accuracy: questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
         totalTime,
-        averageTimePerQuestion: totalTime / questions.length,
+        averageTimePerQuestion: questions.length > 0 ? totalTime / questions.length : 0,
         finishedAt: endTime,
         questionResults: questionResultsRef.current,
         level: sessionData.level,
@@ -286,9 +295,9 @@ export default function QuizScreen({ route, navigation }) {
       // Save to rankings subcollection for real-time updates
       const rankingData = {
         name: studentName,
-        score,
-        accuracy: (score / questions.length) * 100,
-        correct: score,
+        score: finalScore,
+        accuracy: questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
+        correct: finalScore,
         totalTime,
         finishedAt: endTime,
       };
@@ -296,14 +305,14 @@ export default function QuizScreen({ route, navigation }) {
       const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
       await setDoc(rankingRef, rankingData);
 
-      navigation.navigate("RankingScreen", {
+      navigation.replace("RankingScreen", {
         sessionId,
         studentId,
         studentName,
       });
     } catch (error) {
       console.error("Error saving session data:", error);
-      navigation.navigate("RankingScreen", {
+      navigation.replace("RankingScreen", {
         sessionId,
         studentId,
         studentName,
