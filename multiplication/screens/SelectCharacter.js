@@ -56,7 +56,7 @@ export default function SelectCharacter({ navigation, route }) {
   ).current;
   const selectedPulse = useRef(new Animated.Value(1)).current;
 
-  const { sessionId, level, playerId, code } = route.params || {};
+  const { sessionId, level, playerId, code, skipPassword } = route.params || {};
 
   useEffect(() => {
     Font.loadAsync({
@@ -294,6 +294,7 @@ export default function SelectCharacter({ navigation, route }) {
         playerId,
         code,
         selectedCharacter: selected,
+        skipPassword,
       });
     });
   };

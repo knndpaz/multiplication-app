@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 
 export default function AutoJoinScreen({ navigation, route }) {
-  const { session } = route.params || {};
+  const { session, skipPassword } = route.params || {};
 
   useEffect(() => {
     const autoJoin = async () => {
@@ -62,6 +62,7 @@ export default function AutoJoinScreen({ navigation, route }) {
           level: sessionData.level,
           playerId,
           code: session.trim(),
+          skipPassword: sessionData?.skipPassword || skipPassword,
         });
       } catch (error) {
         console.error("Error auto-joining session:", error);

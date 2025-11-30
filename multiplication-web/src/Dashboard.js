@@ -158,6 +158,8 @@ function Dashboard({ user, onLogout, onStartSession }) {
       players: [],
       waitingPlayers: [],
       status: "waiting",
+      // allow skipping password for teacher-started group sessions
+      skipPassword: true,
       gameStarted: false,
       teacherUid: user.uid,
     });
@@ -167,6 +169,40 @@ function Dashboard({ user, onLogout, onStartSession }) {
 
     // Call the parent function to start session at App level
     onStartSession(code, sessionRef.id);
+    return { code, id: sessionRef.id };
+  }
+
+  // Try to open a local play server first, fall back to remote if unavailable
+  async function openPlayWindow(sessionCode) {
+    try {
+      const params = new URLSearchParams();
+      if (sessionCode) params.set("session", sessionCode);
+      // tell the player site that password can be skipped when teacher started session
+      params.set("skipPassword", "1");
+
+      const localUrl = `http://localhost:8081/?${params.toString()}`;
+      const remoteUrl = `https://multiplaycation.site/?${params.toString()}`;
+
+      // Try a quick fetch to localhost with a short timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1500);
+      try {
+        // use no-cors to avoid CORS blocks when probing local server; success/failure is inferred
+        await fetch(localUrl, { method: "GET", mode: "no-cors", signal: controller.signal });
+        clearTimeout(timeout);
+        window.open(localUrl, "_blank", "width=900,height=600,scrollbars=yes,resizable=yes");
+        return;
+      } catch (err) {
+        clearTimeout(timeout);
+        // fallback to remote
+        window.open(remoteUrl, "_blank", "width=900,height=600,scrollbars=yes,resizable=yes");
+        return;
+      }
+    } catch (err) {
+      // In case anything unexpected fails, fallback to remote site
+      const fallback = sessionCode ? `https://multiplaycation.site/?session=${sessionCode}&skipPassword=1` : `https://multiplaycation.site/?skipPassword=1`;
+      window.open(fallback, "_blank", "width=900,height=600,scrollbars=yes,resizable=yes");
+    }
   }
 
   return (
@@ -286,10 +322,21 @@ function Dashboard({ user, onLogout, onStartSession }) {
                       </button>
                       <button
                         className="game-action-btn play-btn"
-                        onClick={() => {
-                          const base = "https://multiplaycation.site/";
-                          const url = currentSessionCode ? `${base}?session=${currentSessionCode}` : base;
-                          window.open(url, "_blank", "width=900,height=600,scrollbars=yes,resizable=yes");
+                        onClick={async () => {
+                          if (currentSessionCode) {
+                            openPlayWindow(currentSessionCode);
+                          } else {
+                            // create a group session for this level then open
+                            try {
+                              const created = await handleGroupPlay(level.name);
+                              const newCode = created?.code;
+                              openPlayWindow(newCode);
+                            } catch (err) {
+                              console.error("Error creating session before Play:", err);
+                              // fallback to opening without session
+                              openPlayWindow(null);
+                            }
+                          }
                         }}
                       >
                         <span className="material-icons">play_arrow</span>

@@ -14,7 +14,7 @@ import {
   AppState,
 } from "react-native";
 import { db } from "../firebase";
-import { collection, collectionGroup, getDocs, doc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
@@ -47,8 +47,32 @@ export default function NameScreen({ navigation, route }) {
   const popupSlide = useRef(new Animated.Value(-100)).current;
   const popupOpacity = useRef(new Animated.Value(0)).current;
 
-  const { sessionId, level, playerId, code, selectedCharacter } =
+  const { sessionId, level, playerId, code, selectedCharacter, skipPassword } =
     route.params || {};
+
+  const [sessionSkipPassword, setSessionSkipPassword] = useState(null);
+
+  // Fetch session document to check for skipPassword (robust if param wasn't forwarded)
+  useEffect(() => {
+    let mounted = true;
+    async function fetchSessionFlag() {
+      try {
+        if (!sessionId) return;
+        const snap = await getDoc(doc(db, "sessions", sessionId));
+        if (!mounted) return;
+        if (snap.exists()) {
+          setSessionSkipPassword(!!snap.data()?.skipPassword);
+        }
+      } catch (err) {
+        console.error("Error fetching session skipPassword flag:", err);
+      }
+    }
+
+    fetchSessionFlag();
+    return () => {
+      mounted = false;
+    };
+  }, [sessionId]);
 
   // Character images mapping
   const characterImages = [
@@ -279,6 +303,8 @@ export default function NameScreen({ navigation, route }) {
   // Music toggling handled by MusicContext
 
   // Filter students based on search query
+  const effectiveSkipPassword = skipPassword || sessionSkipPassword;
+
   const filteredStudents = students.filter((student) => {
     const fullName = `${student.firstname} ${student.lastname}`.toLowerCase();
     return fullName.includes(searchQuery.toLowerCase());
@@ -489,6 +515,7 @@ export default function NameScreen({ navigation, route }) {
               playerId={playerId}
               code={code}
               selectedCharacter={selectedCharacter}
+              skipPassword={effectiveSkipPassword}
             />
           )}
         />
@@ -507,6 +534,7 @@ function StudentCard({
   playerId,
   code,
   selectedCharacter,
+  skipPassword,
 }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
@@ -544,15 +572,28 @@ function StudentCard({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      navigation.navigate("PasswordScreen", {
-        studentId: item.id,
-        studentPath: item.path,
-        sessionId,
-        level,
-        playerId,
-        code,
-        selectedCharacter,
-      });
+      if (skipPassword) {
+        // Skip password - go directly to wait screen with student name
+        navigation.navigate("WaitScreen", {
+          sessionId,
+          level,
+          playerId,
+          code,
+          studentId: item.id,
+          studentName: `${item.firstname} ${item.lastname}`,
+          selectedCharacter,
+        });
+      } else {
+        navigation.navigate("PasswordScreen", {
+          studentId: item.id,
+          studentPath: item.path,
+          sessionId,
+          level,
+          playerId,
+          code,
+          selectedCharacter,
+        });
+      }
     });
   };
 

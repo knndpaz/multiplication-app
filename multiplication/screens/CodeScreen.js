@@ -40,7 +40,7 @@ export default function CodeScreen({ navigation, route }) {
   const hasJoinedSuccessfullyRef = useRef(false);
   const hasAutoJoinedRef = useRef(false);
 
-  const { session } = route.params || {};
+  const { session, skipPassword } = route.params || {};
   const isAutoJoin = !!session;
   const [floatingElements] = useState(() =>
     Array.from({ length: 15 }, (_, i) => ({
@@ -324,14 +324,17 @@ export default function CodeScreen({ navigation, route }) {
 
       console.log("Successfully joined session, navigating to SelectCharacter");
 
+      const skipPasswordToPass = sessionData?.skipPassword || skipPassword;
+
       if (isAutoJoin) {
         // For auto-join, navigate immediately without animation
         navigation.navigate("SelectCharacter", {
-          sessionId: sessionDoc.id,
-          level: sessionData.level,
-          playerId,
-          code: codeInput.trim(),
-        });
+            sessionId: sessionDoc.id,
+            level: sessionData.level,
+            playerId,
+            code: codeInput.trim(),
+            skipPassword: skipPasswordToPass,
+          });
       } else {
         // Success animation for manual join
         Animated.spring(inputScale, {
@@ -340,11 +343,12 @@ export default function CodeScreen({ navigation, route }) {
           useNativeDriver: true,
         }).start(() => {
           navigation.navigate("SelectCharacter", {
-            sessionId: sessionDoc.id,
-            level: sessionData.level,
-            playerId,
-            code: codeInput.trim(),
-          });
+              sessionId: sessionDoc.id,
+              level: sessionData.level,
+              playerId,
+              code: codeInput.trim(),
+              skipPassword: skipPasswordToPass,
+            });
         });
       }
     } catch (error) {
