@@ -303,7 +303,9 @@ export default function NameScreen({ navigation, route }) {
   // Music toggling handled by MusicContext
 
   // Filter students based on search query
-  const effectiveSkipPassword = skipPassword || sessionSkipPassword;
+  // Only skip the password if the route explicitly requested it (e.g. Play button).
+  // Do NOT honor the session document flag when the player types the code manually.
+  const effectiveSkipPassword = !!skipPassword;
 
   const filteredStudents = students.filter((student) => {
     const fullName = `${student.firstname} ${student.lastname}`.toLowerCase();

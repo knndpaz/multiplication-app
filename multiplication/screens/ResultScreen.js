@@ -205,12 +205,13 @@ export default function ResultScreen({ route, navigation }) {
 
         // Create a quick lookup for student's saved question results (if any).
         // Index saved results by questionId and exact question text to support word problems.
+        // NOTE: avoid index-based matching (`idx_`) because the authoritative question order
+        // may differ from the saved results order and can produce incorrect pairings.
         const savedMap = new Map();
         if (studentScore && Array.isArray(studentScore.questionResults)) {
-          studentScore.questionResults.forEach((r, idx) => {
+          studentScore.questionResults.forEach((r) => {
             if (r.questionId) savedMap.set(r.questionId, r);
             if (r.question) savedMap.set(r.question, r);
-            savedMap.set(`idx_${idx}`, r);
           });
         }
 
@@ -221,8 +222,9 @@ export default function ResultScreen({ route, navigation }) {
           const questionText = question.question || "";
           const answer = question.answer || "";
 
-          // Matching strategies: by id, by exact question text, then by index
-          const saved = savedMap.get(question.id) || savedMap.get(questionText) || savedMap.get(`idx_${index}`) || null;
+          // Matching strategies: by id, then by exact question text
+          // (index-based matching removed to prevent incorrect cross-matching)
+          const saved = savedMap.get(question.id) || savedMap.get(questionText) || null;
 
           const isCorrect = saved?.isCorrect ?? false;
           const userAnswer = saved?.userAnswer ?? (saved ? (saved.isCorrect ? answer : "Incorrect") : "No Answer");

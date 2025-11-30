@@ -32,6 +32,9 @@ function Dashboard({ user, onLogout, onStartSession }) {
 
   // Session state
   const [currentSessionCode, setCurrentSessionCode] = React.useState(null);
+  // Track whether the current session was created via the Play button
+  // (only Play-initiated sessions should allow skipping password)
+  const [currentSessionSkip, setCurrentSessionSkip] = React.useState(false);
 
   // Analytics state
   const [analytics, setAnalytics] = React.useState(null);
@@ -149,7 +152,7 @@ function Dashboard({ user, onLogout, onStartSession }) {
     { name: "LEVEL 3", level: "level-3", difficulty: "Hard", color: "#6BAAFF" },
   ];
 
-  async function handleGroupPlay(level) {
+  async function handleGroupPlay(level, options = { skipPassword: false }) {
     const code = generateSessionCode();
     const sessionRef = await addDoc(collection(db, "sessions"), {
       code,
@@ -158,14 +161,15 @@ function Dashboard({ user, onLogout, onStartSession }) {
       players: [],
       waitingPlayers: [],
       status: "waiting",
-      // allow skipping password for teacher-started group sessions
-      skipPassword: true,
+      // allow skipping password only when requested (Play button)
+      skipPassword: !!options.skipPassword,
       gameStarted: false,
       teacherUid: user.uid,
     });
 
-    // Set the current session code for Play button
+    // Set the current session code for Play button and whether it should skip password
     setCurrentSessionCode(code);
+    setCurrentSessionSkip(!!options.skipPassword);
 
     // Call the parent function to start session at App level
     onStartSession(code, sessionRef.id);
@@ -173,12 +177,12 @@ function Dashboard({ user, onLogout, onStartSession }) {
   }
 
   // Try to open a local play server first, fall back to remote if unavailable
-  async function openPlayWindow(sessionCode) {
+  async function openPlayWindow(sessionCode, skipPassword = false) {
     try {
       const params = new URLSearchParams();
       if (sessionCode) params.set("session", sessionCode);
-      // tell the player site that password can be skipped when teacher started session
-      params.set("skipPassword", "1");
+      // tell the player site that password can be skipped only when requested
+      if (skipPassword) params.set("skipPassword", "1");
 
       const localUrl = `http://localhost:8081/?${params.toString()}`;
       const remoteUrl = `https://multiplaycation.site/?${params.toString()}`;
@@ -323,18 +327,19 @@ function Dashboard({ user, onLogout, onStartSession }) {
                       <button
                         className="game-action-btn play-btn"
                         onClick={async () => {
-                          if (currentSessionCode) {
-                            openPlayWindow(currentSessionCode);
+                          // If we already have a session created by Play (skip enabled), reuse it.
+                          // Otherwise create a fresh Play session that has skipPassword=true.
+                          if (currentSessionCode && currentSessionSkip) {
+                            openPlayWindow(currentSessionCode, true);
                           } else {
-                            // create a group session for this level then open
                             try {
-                              const created = await handleGroupPlay(level.name);
+                              const created = await handleGroupPlay(level.name, { skipPassword: true });
                               const newCode = created?.code;
-                              openPlayWindow(newCode);
+                              openPlayWindow(newCode, true);
                             } catch (err) {
                               console.error("Error creating session before Play:", err);
-                              // fallback to opening without session
-                              openPlayWindow(null);
+                              // fallback to opening without session and without skip flag
+                              openPlayWindow(null, false);
                             }
                           }
                         }}
