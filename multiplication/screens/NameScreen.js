@@ -14,10 +14,11 @@ import {
   AppState,
 } from "react-native";
 import { db } from "../firebase";
-import { collection, getDocs, doc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, doc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
+import { useMusic } from "../MusicContext";
 
 const { width } = Dimensions.get("window");
 
@@ -28,7 +29,7 @@ export default function NameScreen({ navigation, route }) {
   const [wrongPassword, setWrongPassword] = useState(
     route?.params?.wrongPassword || false
   );
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const { isMusicOn, toggleMusic } = useMusic();
   const [searchQuery, setSearchQuery] = useState("");
   const [floatingElements] = useState(() =>
     Array.from({ length: 10 }, (_, i) => ({
@@ -169,25 +170,20 @@ export default function NameScreen({ navigation, route }) {
   useEffect(() => {
     async function fetchStudents() {
       try {
-        console.log(
-          "Fetching students from path: students/rTPhhHNRT5gMWFsZWdrtmpUVhWd2/list"
-        );
+        console.log("Fetching students using collectionGroup('list')");
 
-        const studentsRef = collection(
-          db,
-          "students",
-          "rTPhhHNRT5gMWFsZWdrtmpUVhWd2",
-          "list"
-        );
+        // Use collectionGroup to fetch all student documents inside any 'list' subcollection
+        const studentsRef = collectionGroup(db, "list");
         const snap = await getDocs(studentsRef);
 
         const arr = [];
         snap.forEach((doc) => {
-          console.log("Student doc:", doc.id, doc.data());
-          arr.push({ ...doc.data(), id: doc.id });
+          console.log("Student doc:", doc.id, doc.data(), "path:", doc.ref.path);
+          // include the full document path so we can guarantee a unique key for rendering
+          arr.push({ ...doc.data(), id: doc.id, path: doc.ref.path });
         });
 
-        console.log("Fetched students:", arr);
+        console.log("Fetched students (collectionGroup):", arr.length);
         setStudents(arr);
       } catch (error) {
         console.error("Error fetching students:", error);
@@ -280,9 +276,7 @@ export default function NameScreen({ navigation, route }) {
     }
   }, [wrongPassword]);
 
-  const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
-  };
+  // Music toggling handled by MusicContext
 
   // Filter students based on search query
   const filteredStudents = students.filter((student) => {
@@ -481,9 +475,10 @@ export default function NameScreen({ navigation, route }) {
       ) : (
         <FlatList
           data={filteredStudents}
-          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.nameList}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={<Text style={styles.countText}>{`Students loaded: ${students.length}`}</Text>}
+          keyExtractor={(item) => item.path || item.id}
           renderItem={({ item, index }) => (
             <StudentCard
               item={item}
@@ -551,6 +546,7 @@ function StudentCard({
     ]).start(() => {
       navigation.navigate("PasswordScreen", {
         studentId: item.id,
+        studentPath: item.path,
         sessionId,
         level,
         playerId,
@@ -904,6 +900,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
     lineHeight: 32,
+  },
+  countText: {
+    color: "#fff",
+    fontSize: 16,
+    marginBottom: 8,
+    fontFamily: "BernerBasisschrift1",
+    fontWeight: "700",
+    textAlign: "left",
   },
   loadingText: {
     color: "#fff",

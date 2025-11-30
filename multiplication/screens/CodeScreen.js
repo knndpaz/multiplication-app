@@ -15,7 +15,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
+import { Audio } from "expo-av";
 import { db } from "../firebase";
+import { useMusic } from "../MusicContext";
 import {
   collection,
   query,
@@ -32,7 +34,7 @@ export default function CodeScreen({ navigation, route }) {
   const [codeInput, setCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const { isMusicOn, toggleMusic, startBackgroundMusic } = useMusic();
   const [joinedPlayerId, setJoinedPlayerId] = useState(null);
   const [joinedSessionId, setJoinedSessionId] = useState(null);
   const hasJoinedSuccessfullyRef = useRef(false);
@@ -68,19 +70,62 @@ export default function CodeScreen({ navigation, route }) {
 
   // Play session code audio once when component mounts
   useEffect(() => {
+    let mounted = true;
+    let soundRef = null;
+
+    const tryPlay = async (sound) => {
+      try {
+        await sound.playAsync();
+        // Schedule unload after played
+        setTimeout(() => {
+          sound.unloadAsync().catch(() => {});
+        }, 5000);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    };
+
     const playAudio = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
           require("../assets/Voice Records/Please enter session code.m4a")
         );
-        await sound.playAsync();
-        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+        soundRef = sound;
+
+        const played = await tryPlay(sound);
+        if (!played && typeof document !== "undefined") {
+          // Autoplay blocked on web — resume on first user interaction
+          const resume = async () => {
+            try {
+              await sound.playAsync();
+            } catch (e) {
+              // ignore
+            }
+            // cleanup listeners
+            document.removeEventListener("click", resume);
+            document.removeEventListener("touchend", resume);
+            // schedule unload
+            setTimeout(() => sound.unloadAsync().catch(() => {}), 5000);
+          };
+          document.addEventListener("click", resume);
+          document.addEventListener("touchend", resume);
+        }
       } catch (error) {
-        console.error("Error playing session code audio:", error);
+        // don't spam console — provide a concise message
+        console.error("Could not load session code audio:", error?.message || error);
       }
     };
 
     playAudio();
+
+    return () => {
+      mounted = false;
+      if (soundRef) {
+        soundRef.unloadAsync().catch(() => {});
+        soundRef = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -188,6 +233,10 @@ export default function CodeScreen({ navigation, route }) {
         }),
       ])
     ).start();
+    // Start background music on CodeScreen mount if user preference allows
+    if (isMusicOn && startBackgroundMusic) {
+      startBackgroundMusic().catch(() => {});
+    }
   }, [fontsLoaded]);
 
   const shakeInput = () => {
@@ -307,10 +356,7 @@ export default function CodeScreen({ navigation, route }) {
     }
   };
 
-  const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
-    // Music toggle logic will be added during development
-  };
+  // Music toggling handled by MusicContext
 
   const handleButtonPress = () => {
     Animated.sequence([

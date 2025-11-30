@@ -19,6 +19,7 @@ import {
   updateDoc,
   arrayRemove,
 } from "firebase/firestore";
+import { useMusic } from "../MusicContext";
 
 const { width } = Dimensions.get("window");
 
@@ -32,8 +33,10 @@ const characters = [
 export default function SelectCharacter({ navigation, route }) {
   const [selected, setSelected] = useState(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [isMusicOn, setIsMusicOn] = useState(true);
-  const [sound, setSound] = useState(null);
+  // Ref to hold the selection-screen audio so we can cleanup correctly
+  const selectionSoundRef = useRef(null);
+  // Use global music context
+  const { isMusicOn, toggleMusic } = useMusic();
   const [floatingElements] = useState(() =>
     Array.from({ length: 12 }, (_, i) => ({
       id: i,
@@ -60,12 +63,8 @@ export default function SelectCharacter({ navigation, route }) {
       BernerBasisschrift1: require("../assets/fonts/BernerBasisschrift1.ttf"),
     }).then(() => {
       setFontsLoaded(true);
-      // Start background music after fonts are loaded if enabled
-      if (isMusicOn) {
-        playBackgroundMusic();
-      }
     });
-  }, [isMusicOn]);
+  }, []);
 
   // Play character selection audio once when component mounts
   useEffect(() => {
@@ -74,8 +73,14 @@ export default function SelectCharacter({ navigation, route }) {
         const { sound } = await Audio.Sound.createAsync(
           require("../assets/Voice Records/Please select a character .m4a")
         );
+        // store ref so we can unload on unmount
+        selectionSoundRef.current = sound;
         await sound.playAsync();
-        setTimeout(() => sound.unloadAsync(), 5000); // Unload after 5 seconds
+        // schedule unload after played (best-effort)
+        setTimeout(() => {
+          selectionSoundRef.current?.unloadAsync().catch(() => {});
+          selectionSoundRef.current = null;
+        }, 5000);
       } catch (error) {
         console.error("Error playing character selection audio:", error);
       }
@@ -146,11 +151,12 @@ export default function SelectCharacter({ navigation, route }) {
   // Cleanup sound on unmount
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync();
+      if (selectionSoundRef.current) {
+        selectionSoundRef.current.unloadAsync().catch(() => {});
+        selectionSoundRef.current = null;
       }
     };
-  }, [sound]);
+  }, []);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -225,7 +231,8 @@ export default function SelectCharacter({ navigation, route }) {
         require("../assets/audio/pop.mp3"),
         { shouldPlay: true }
       );
-      // Note: We don't set state for popSound since it's a one-time play
+      // Unload the short pop sound after a short delay (best-effort)
+      setTimeout(() => popSound?.unloadAsync().catch(() => {}), 1500);
     } catch (error) {
       console.error("Error playing pop sound:", error);
     }
@@ -242,7 +249,7 @@ export default function SelectCharacter({ navigation, route }) {
         audioFiles[characters[idx].name],
         { shouldPlay: true }
       );
-      setTimeout(() => nameSound.unloadAsync(), 5000); // Unload after 5 seconds
+      setTimeout(() => nameSound?.unloadAsync().catch(() => {}), 5000); // Unload after 5 seconds
     } catch (error) {
       console.error("Error playing character name audio:", error);
     }
@@ -291,30 +298,7 @@ export default function SelectCharacter({ navigation, route }) {
     });
   };
 
-  const playBackgroundMusic = async () => {
-    try {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        require("../assets/audio/431. Cartoon.mp3"),
-        { isLooping: true }
-      );
-      await newSound.playAsync();
-      setSound(newSound);
-    } catch (error) {
-      console.error("Error loading sound:", error);
-    }
-  };
-
-  const toggleMusic = () => {
-    const newMusicState = !isMusicOn;
-    setIsMusicOn(newMusicState);
-
-    if (newMusicState && fontsLoaded) {
-      playBackgroundMusic();
-    } else if (sound) {
-      sound.unloadAsync();
-      setSound(null);
-    }
-  };
+  // Background music is managed globally by MusicContext
 
   if (!fontsLoaded) {
     return (

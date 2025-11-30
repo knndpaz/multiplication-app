@@ -15,6 +15,7 @@ import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import { useMusic } from "../MusicContext";
 
 const yeeeySound = require("../assets/Voice Records/Yeeey! .m4a");
 
@@ -35,7 +36,7 @@ export default function RankingScreen({ route, navigation }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [scores, setScores] = useState([]);
   const [currentStudentData, setCurrentStudentData] = useState(null);
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const { isMusicOn, toggleMusic } = useMusic();
   const [floatingElements] = useState(() =>
     Array.from({ length: 10 }, (_, i) => ({
       id: i,
@@ -149,9 +150,7 @@ export default function RankingScreen({ route, navigation }) {
     });
   };
 
-  const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
-  };
+  // Music toggling handled by MusicContext
 
   const getMedalEmoji = (index) => {
     switch (index) {

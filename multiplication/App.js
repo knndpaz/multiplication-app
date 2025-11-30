@@ -13,6 +13,7 @@ import QuizScreen from './screens/QuizScreen';
 import RankingScreen from './screens/RankingScreen';
 import WaitScreen from './screens/WaitScreen';
 import ResultScreen from './screens/ResultScreen';
+import { MusicProvider } from './MusicContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,9 +32,10 @@ const initialRoute = 'TitleScreen';
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
+    <MusicProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="TitleScreen" component={TitleScreen} initialParams={{ session: urlParams.session }} />
         <Stack.Screen name="AutoJoinScreen" component={AutoJoinScreen} />
         <Stack.Screen name="CodeScreen" component={CodeScreen} />
@@ -44,7 +46,8 @@ export default function App() {
         <Stack.Screen name="QuizScreen" component={QuizScreen} />
         <Stack.Screen name="RankingScreen" component={RankingScreen} />
         <Stack.Screen name="ResultScreen" component={ResultScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        </Stack.Navigator>
+      </NavigationContainer>
+    </MusicProvider>
   );
 }

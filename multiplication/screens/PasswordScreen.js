@@ -44,7 +44,7 @@ export default function PasswordScreen({ navigation, route }) {
   const buttonScale = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const { studentId, sessionId, level, playerId, code, selectedCharacter } =
+  const { studentId, studentPath, sessionId, level, playerId, code, selectedCharacter } =
     route.params || {};
 
   // Character images mapping
@@ -131,13 +131,22 @@ export default function PasswordScreen({ navigation, route }) {
     setError(false);
 
     try {
-      const studentRef = doc(
-        db,
-        "students",
-        "rTPhhHNRT5gMWFsZWdrtmpUVhWd2",
-        "list",
-        studentId
-      );
+      // Build the document reference from the full path if provided, otherwise
+      // fall back to the legacy path structure.
+      let studentRef;
+      if (studentPath) {
+        const segments = studentPath.split("/").filter(Boolean);
+        studentRef = doc(db, ...segments);
+      } else {
+        studentRef = doc(
+          db,
+          "students",
+          "rTPhhHNRT5gMWFsZWdrtmpUVhWd2",
+          "list",
+          studentId
+        );
+      }
+
       const studentSnap = await getDoc(studentRef);
       setLoading(false);
 

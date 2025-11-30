@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { useMusic } from "../MusicContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -22,7 +23,7 @@ export default function ResultScreen({ route, navigation }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questionResults, setQuestionResults] = useState([]);
   const [currentTip, setCurrentTip] = useState(null);
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const { isMusicOn, toggleMusic } = useMusic();
   const [floatingElements] = useState(() =>
     Array.from({ length: 8 }, (_, i) => ({
       id: i,
@@ -169,65 +170,93 @@ export default function ResultScreen({ route, navigation }) {
       });
 
       // Find this student's score data
-      const studentScore = sessionData.scores?.find(s => s.studentId === studentId);
+      const studentScore = sessionData.scores?.find((s) => s.studentId === studentId);
 
-      if (studentScore && studentScore.questionResults) {
-        // Use the questionResults from the saved score data
-        const results = studentScore.questionResults.map((result, index) => {
-          let question = null;
-          if (result.questionId) {
-            question = questions.find(q => q.id === result.questionId);
+      // Build results based on the authoritative `questions` list fetched from Firestore.
+      // If the session includes an explicit question order (from the web UI), honor it.
+      if (questions.length > 0) {
+        const results = [];
+
+        // Map questions by id for quick lookup
+        const questionsById = new Map();
+        questions.forEach((q) => questionsById.set(q.id, q));
+
+        // Check sessionData for an explicit order of question ids
+        const possibleOrderKeys = [
+          "questionIds",
+          "questionOrder",
+          "questionsOrder",
+          "questionList",
+          "questions",
+          "question_ids",
+          "question_id_list",
+        ];
+        let orderedQuestions = questions;
+        for (const key of possibleOrderKeys) {
+          const arr = sessionData?.[key];
+          if (Array.isArray(arr) && arr.length > 0) {
+            const built = arr.map((id) => questionsById.get(id)).filter(Boolean);
+            // include any remaining questions not listed in the order at the end
+            const remaining = questions.filter((q) => !built.includes(q));
+            orderedQuestions = [...built, ...remaining];
+            break;
           }
-          if (!question && questions[index]) {
-            question = questions[index];
-          }
-          if (question) {
-            let num1 = question.num1;
-            let num2 = question.num2;
-            let answer = question.answer;
-            // If num1 and num2 are not present, parse from question string
-            if (num1 == null || num2 == null) {
-              const match = question.question?.match(/What is (\d+) x (\d+)\?/);
-              if (match) {
-                num1 = parseInt(match[1]);
-                num2 = parseInt(match[2]);
-                answer = question.answer || (num1 * num2).toString();
-              }
-            }
-            if (num1 != null && num2 != null) {
-              return {
-                question: `${num1} × ${num2} = ?`,
-                userAnswer: result.userAnswer || (result.isCorrect ? answer : "Incorrect"),
-                correctAnswer: answer,
-                isCorrect: result.isCorrect,
-              };
-            }
-          }
-          return null;
-        }).filter(Boolean);
+        }
+
+        // Create a quick lookup for student's saved question results (if any).
+        // Index saved results by questionId and exact question text to support word problems.
+        const savedMap = new Map();
+        if (studentScore && Array.isArray(studentScore.questionResults)) {
+          studentScore.questionResults.forEach((r, idx) => {
+            if (r.questionId) savedMap.set(r.questionId, r);
+            if (r.question) savedMap.set(r.question, r);
+            savedMap.set(`idx_${idx}`, r);
+          });
+        }
+
+        // For each question in the authoritative orderedQuestions list, match the student's answer if present
+        orderedQuestions.forEach((question, index) => {
+          if (!question) return;
+
+          const questionText = question.question || "";
+          const answer = question.answer || "";
+
+          // Matching strategies: by id, by exact question text, then by index
+          const saved = savedMap.get(question.id) || savedMap.get(questionText) || savedMap.get(`idx_${index}`) || null;
+
+          const isCorrect = saved?.isCorrect ?? false;
+          const userAnswer = saved?.userAnswer ?? (saved ? (saved.isCorrect ? answer : "Incorrect") : "No Answer");
+
+          // Use the original question text for display when num1/num2 are not provided
+          const displayQuestion = questionText.includes("×") || questionText.match(/(\d+)\s*[xX]\s*(\d+)/)
+            ? questionText
+            : questionText || `${question.num1 || ""} × ${question.num2 || ""} = ?`;
+
+          results.push({
+            question: displayQuestion,
+            userAnswer,
+            correctAnswer: answer,
+            isCorrect,
+          });
+        });
+
+        // Debug: log counts to help diagnose mismatches
+        console.log("[ResultScreen] fetched questions:", questions.length, "orderedQuestions:", orderedQuestions.length, "saved results:", (studentScore && studentScore.questionResults) ? studentScore.questionResults.length : 0, "built results:", results.length);
 
         setQuestionResults(results);
       } else {
-        // Fallback: use basic score data if available
-        if (studentScore) {
-          const totalQuestions = studentScore.totalQuestions || 0;
-          const correctAnswers = studentScore.correctAnswers || 0;
-          const results = [];
-          for (let i = 0; i < totalQuestions; i++) {
-            const question = questions[i];
-            if (question) {
-              const isCorrect = i < correctAnswers; // Assume first correctAnswers are correct
-              results.push({
-                question: `${question.num1} × ${question.num2} = ?`,
-                userAnswer: isCorrect ? question.answer : "Incorrect",
-                correctAnswer: question.answer,
-                isCorrect: isCorrect,
-              });
-            }
-          }
+        // No questions available, but if there's a studentScore with counts, try to build a reasonable fallback
+        if (studentScore && Array.isArray(studentScore.questionResults) && studentScore.questionResults.length > 0) {
+          const results = studentScore.questionResults.map((result) => {
+            return {
+              question: result.question || "",
+              userAnswer: result.userAnswer || (result.isCorrect ? result.correctAnswer : "Incorrect") || "No Answer",
+              correctAnswer: result.correctAnswer || "",
+              isCorrect: !!result.isCorrect,
+            };
+          });
           setQuestionResults(results);
         } else {
-          // No score data, show empty
           setQuestionResults([]);
         }
       }
@@ -299,9 +328,7 @@ export default function ResultScreen({ route, navigation }) {
     }
   };
 
-  const toggleMusic = () => {
-    setIsMusicOn(!isMusicOn);
-  };
+  // Music toggling handled by MusicContext
 
   const handleHomePress = () => {
     navigation.navigate("TitleScreen");

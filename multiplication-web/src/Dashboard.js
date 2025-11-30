@@ -286,9 +286,11 @@ function Dashboard({ user, onLogout, onStartSession }) {
                       </button>
                       <button
                         className="game-action-btn play-btn"
-                        onClick={() =>
-                          window.open(currentSessionCode ? `http://localhost:8081?session=${currentSessionCode}` : "http://localhost:8081", "_blank", "width=900,height=600,scrollbars=yes,resizable=yes")
-                        }
+                        onClick={() => {
+                          const base = "https://multiplaycation.site/";
+                          const url = currentSessionCode ? `${base}?session=${currentSessionCode}` : base;
+                          window.open(url, "_blank", "width=900,height=600,scrollbars=yes,resizable=yes");
+                        }}
                       >
                         <span className="material-icons">play_arrow</span>
                         <span>Play</span>
