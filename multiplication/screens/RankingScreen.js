@@ -255,21 +255,6 @@ export default function RankingScreen({ route, navigation }) {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={["#667eea", "#764ba2"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.backButtonGradient}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </LinearGradient>
-      </TouchableOpacity>
 
       {/* Header */}
       <Animated.View

@@ -23,7 +23,7 @@ export default function ResultScreen({ route, navigation }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questionResults, setQuestionResults] = useState([]);
   const [currentTip, setCurrentTip] = useState(null);
-  const { isMusicOn, toggleMusic } = useMusic();
+  const { isMusicOn, toggleMusic, stopBackgroundMusic } = useMusic();
   const [floatingElements] = useState(() =>
     Array.from({ length: 8 }, (_, i) => ({
       id: i,
@@ -332,7 +332,12 @@ export default function ResultScreen({ route, navigation }) {
 
   // Music toggling handled by MusicContext
 
-  const handleHomePress = () => {
+  const handleHomePress = async () => {
+    try {
+      if (stopBackgroundMusic) await stopBackgroundMusic();
+    } catch (e) {
+      console.warn("Error stopping background music:", e);
+    }
     navigation.navigate("TitleScreen");
   };
 
