@@ -40,7 +40,7 @@ function Students({ user, onLogout }) {
 
   useEffect(() => {
     if (!user) {
-      navigate('/');
+      navigate("/");
       return;
     }
   }, [user, navigate]);
@@ -53,7 +53,7 @@ function Students({ user, onLogout }) {
       const arr = [];
       snap.forEach((doc) => {
         const path = doc.ref.path;
-        const parts = path.split('/');
+        const parts = path.split("/");
         const userId = parts[1];
         arr.push({ ...doc.data(), id: doc.id, userId });
       });
@@ -1322,14 +1322,17 @@ function Students({ user, onLogout }) {
           
           .students-table-header,
           .students-table-row {
-            grid-template-columns: 1.5fr 1fr 120px;
+            grid-template-columns: 2fr 1fr 120px;
             padding: 12px 16px;
             gap: 12px;
           }
           
-          .students-password,
-          .actions-header {
+          .students-id {
             display: none;
+          }
+          
+          .students-password {
+            display: block;
           }
           
           .students-img {
@@ -1343,10 +1346,6 @@ function Students({ user, onLogout }) {
           
           .students-meta {
             font-size: 11px;
-          }
-          
-          .students-id {
-            font-size: 12px;
           }
           
           .form-row {
@@ -1436,8 +1435,16 @@ function Students({ user, onLogout }) {
           
           .students-table-row {
             padding: 10px 12px;
-            grid-template-columns: 1.8fr 1fr 100px;
+            grid-template-columns: 2fr 1fr 100px;
             gap: 8px;
+          }
+          
+          .students-id {
+            display: none;
+          }
+          
+          .students-password {
+            display: block;
           }
           
           .students-info {
@@ -1456,10 +1463,6 @@ function Students({ user, onLogout }) {
           
           .students-meta {
             font-size: 10px;
-          }
-          
-          .students-id {
-            font-size: 11px;
           }
           
           .students-actions {
