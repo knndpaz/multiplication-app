@@ -172,7 +172,9 @@ function Dashboard({ user, onLogout, onStartSession }) {
     setCurrentSessionSkip(!!options.skipPassword);
 
     // Call the parent function to start session at App level
-    onStartSession(code, sessionRef.id);
+    // Pass the skipPassword flag so the App can avoid showing the
+    // session modal for Play-created single-player sessions.
+    onStartSession(code, sessionRef.id, !!options.skipPassword);
     return { code, id: sessionRef.id };
   }
 
@@ -327,20 +329,17 @@ function Dashboard({ user, onLogout, onStartSession }) {
                       <button
                         className="game-action-btn play-btn"
                         onClick={async () => {
-                          // If we already have a session created by Play (skip enabled), reuse it.
-                          // Otherwise create a fresh Play session that has skipPassword=true.
-                          if (currentSessionCode && currentSessionSkip) {
-                            openPlayWindow(currentSessionCode, true);
-                          } else {
-                            try {
-                              const created = await handleGroupPlay(level.name, { skipPassword: true });
-                              const newCode = created?.code;
-                              openPlayWindow(newCode, true);
-                            } catch (err) {
-                              console.error("Error creating session before Play:", err);
-                              // fallback to opening without session and without skip flag
-                              openPlayWindow(null, false);
-                            }
+                          // Always create a fresh Play session with skipPassword=true
+                          // so the player site/mobile receives a new `session` and
+                          // `skipPassword` param every time Play is clicked.
+                          try {
+                            const created = await handleGroupPlay(level.name, { skipPassword: true });
+                            const newCode = created?.code;
+                            openPlayWindow(newCode, true);
+                          } catch (err) {
+                            console.error("Error creating session before Play:", err);
+                            // fallback to opening without session and without skip flag
+                            openPlayWindow(null, false);
                           }
                         }}
                       >

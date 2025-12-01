@@ -305,13 +305,27 @@ export default function QuizScreen({ route, navigation }) {
       const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
       await setDoc(rankingRef, rankingData);
 
-      navigation.replace("RankingScreen", {
-        sessionId,
-        studentId,
-        studentName,
-      });
+      // If this session was created via the Play button (skipPassword true),
+      // treat it as a single-player session: skip the ranking screen and go
+      // directly to the results screen.
+      if (sessionData && sessionData.skipPassword) {
+        const allScoresUpdated = [...filteredScores, playerResult];
+        navigation.replace("ResultScreen", {
+          sessionId,
+          studentId,
+          studentData: playerResult,
+          allScores: allScoresUpdated,
+        });
+      } else {
+        navigation.replace("RankingScreen", {
+          sessionId,
+          studentId,
+          studentName,
+        });
+      }
     } catch (error) {
       console.error("Error saving session data:", error);
+      // On error, fall back to the ranking screen so the user can still view results.
       navigation.replace("RankingScreen", {
         sessionId,
         studentId,

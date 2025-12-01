@@ -38,10 +38,13 @@ function AppContent() {
   };
 
   // Function to start a new session (called from Dashboard)
-  const startSession = (code, id) => {
+  // `skipPassword` indicates a Play-created single-player session and
+  // should prevent the SessionModal (waiting room) from opening.
+  const startSession = (code, id, skipPassword = false) => {
     setSessionCode(code);
     setSessionId(id);
-    setShowSessionModal(true);
+    // Only show the session modal when this is a group/teacher session.
+    setShowSessionModal(!skipPassword);
     setIsSessionMinimized(false);
   };
 

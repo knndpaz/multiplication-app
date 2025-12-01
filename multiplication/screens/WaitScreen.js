@@ -204,8 +204,10 @@ export default function WaitScreen({ navigation, route }) {
         const snap = await getDoc(sessionRef);
         const data = snap?.data();
 
-        // If teacher already started the game, prevent late join
-        if (data?.gameStarted === true) {
+        // If the teacher already started the game, usually prevent late join.
+        // However, sessions created via the Play button (single-player) set
+        // `skipPassword` — allow joining and proceed immediately in that case.
+        if (data?.gameStarted === true && !data?.skipPassword) {
           Alert.alert(
             "Session Started",
             "This session has already started. You cannot join.",
@@ -228,6 +230,22 @@ export default function WaitScreen({ navigation, route }) {
           waitingPlayers: arrayUnion(playerData),
           readyPlayers: arrayUnion(playerId),
         });
+
+        // If this session was created with `skipPassword` (Play-created single-player),
+        // start immediately by navigating to the QuizScreen instead of waiting.
+        if (data?.skipPassword) {
+          setGameStarted(true);
+          navigation.replace("QuizScreen", {
+            sessionId,
+            studentId,
+            studentName,
+            level,
+            playerId,
+            code,
+            selectedCharacter,
+          });
+          return;
+        }
       } catch (error) {
         console.error("Error adding to lists:", error);
       }
