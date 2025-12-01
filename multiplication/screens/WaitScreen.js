@@ -50,6 +50,7 @@ export default function WaitScreen({ navigation, route }) {
     playerId,
     code,
     selectedCharacter,
+    skipPassword,
   } = route.params;
 
   // Define player object for consistent add/remove
@@ -182,8 +183,10 @@ export default function WaitScreen({ navigation, route }) {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    // Play waiting audio once when component mounts
+    // Play waiting audio once when component mounts — but skip for single-player
+    // sessions created via Play (skipPassword=true).
     const playWaitingAudio = async () => {
+      if (skipPassword) return; // single-player, don't play waiting sound
       try {
         const { sound } = await Audio.Sound.createAsync(
           require("../assets/Voice Records/Let_s wait for the teacher to start .m4a")

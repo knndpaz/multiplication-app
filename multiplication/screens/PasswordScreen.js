@@ -44,7 +44,7 @@ export default function PasswordScreen({ navigation, route }) {
   const buttonScale = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const { studentId, studentPath, sessionId, level, playerId, code, selectedCharacter } =
+  const { studentId, studentPath, sessionId, level, playerId, code, selectedCharacter, skipPassword } =
     route.params || {};
 
   // Character images mapping
@@ -62,7 +62,10 @@ export default function PasswordScreen({ navigation, route }) {
   }, []);
 
   // Play password entry audio once when component mounts
+  // Skip for Play-created single-player sessions (skipPassword=true)
   useEffect(() => {
+    if (skipPassword) return;
+
     const playAudio = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
@@ -76,7 +79,7 @@ export default function PasswordScreen({ navigation, route }) {
     };
 
     playAudio();
-  }, []);
+  }, [skipPassword]);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -189,6 +192,7 @@ export default function PasswordScreen({ navigation, route }) {
             studentSnap.data().lastname
           }`,
           selectedCharacter,
+          skipPassword,
         });
       } else {
         setError(true);
@@ -201,6 +205,7 @@ export default function PasswordScreen({ navigation, route }) {
             playerId,
             code,
             selectedCharacter,
+            skipPassword,
           });
         }, 1500);
       }

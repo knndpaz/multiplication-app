@@ -584,6 +584,7 @@ function StudentCard({
           studentId: item.id,
           studentName: `${item.firstname} ${item.lastname}`,
           selectedCharacter,
+          skipPassword,
         });
       } else {
         navigation.navigate("PasswordScreen", {
@@ -594,6 +595,7 @@ function StudentCard({
           playerId,
           code,
           selectedCharacter,
+          skipPassword,
         });
       }
     });

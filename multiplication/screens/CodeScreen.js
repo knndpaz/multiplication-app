@@ -88,6 +88,26 @@ export default function CodeScreen({ navigation, route }) {
 
     const playAudio = async () => {
       try {
+        // If route explicitly set skipPassword, skip playing audio.
+        if (skipPassword) return;
+
+        // If a session code was provided via params, check the session doc
+        // to see if it was created by Play (skipPassword flag). If so,
+        // avoid playing the audio.
+        if (session && session.trim()) {
+          try {
+            const q = query(collection(db, "sessions"), where("code", "==", session.trim()));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              const sdata = snap.docs[0].data();
+              if (sdata?.skipPassword) return;
+            }
+          } catch (err) {
+            // ignore errors querying session, fall back to playing audio
+            console.warn("Could not verify session skipPassword flag:", err);
+          }
+        }
+
         const { sound } = await Audio.Sound.createAsync(
           require("../assets/Voice Records/Please enter session code.m4a")
         );
