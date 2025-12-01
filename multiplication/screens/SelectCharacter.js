@@ -14,11 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import {
-  doc,
-  updateDoc,
-  arrayRemove,
-} from "firebase/firestore";
+import { doc, updateDoc, arrayRemove } from "firebase/firestore";
 import { useMusic } from "../MusicContext";
 
 const { width } = Dimensions.get("window");
@@ -91,8 +87,8 @@ export default function SelectCharacter({ navigation, route }) {
 
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
         if (playerId && sessionId) {
           const removePlayer = async () => {
             try {
@@ -101,7 +97,9 @@ export default function SelectCharacter({ navigation, route }) {
                 players: arrayRemove(playerId),
                 readyPlayers: arrayRemove(playerId),
               });
-              console.log("Player removed from session due to app close/background");
+              console.log(
+                "Player removed from session due to app close/background"
+              );
             } catch (error) {
               console.error("Error removing player from session:", error);
             }
@@ -118,13 +116,15 @@ export default function SelectCharacter({ navigation, route }) {
 
   // Handle browser tab close and visibility changes for web version
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       const handleVisibilityChange = () => {
         if (document.hidden && playerId && sessionId) {
           updateDoc(doc(db, "sessions", sessionId), {
             players: arrayRemove(playerId),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on visibility change:", error));
+          }).catch((error) =>
+            console.error("Error removing player on visibility change:", error)
+          );
         }
       };
 
@@ -134,16 +134,21 @@ export default function SelectCharacter({ navigation, route }) {
           updateDoc(doc(db, "sessions", sessionId), {
             players: arrayRemove(playerId),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on tab close:", error));
+          }).catch((error) =>
+            console.error("Error removing player on tab close:", error)
+          );
         }
       };
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
   }, [playerId, sessionId]);
@@ -294,6 +299,7 @@ export default function SelectCharacter({ navigation, route }) {
         playerId,
         code,
         selectedCharacter: selected,
+        selectedCharacterData: characters[selected], // Pass the full character data
         skipPassword,
       });
     });
@@ -387,7 +393,9 @@ export default function SelectCharacter({ navigation, route }) {
             updateDoc(doc(db, "sessions", sessionId), {
               players: arrayRemove(playerId),
               readyPlayers: arrayRemove(playerId),
-            }).catch(error => console.error("Error removing player on back:", error));
+            }).catch((error) =>
+              console.error("Error removing player on back:", error)
+            );
           }
           navigation.goBack();
         }}

@@ -30,15 +30,17 @@ const wrongSounds = [
 const timeoutSound = require("../assets/Voice Records/Times up! .m4a");
 
 const playSound = (soundFile) => {
-  Audio.Sound.createAsync(soundFile).then(({ sound }) => {
-    sound.playAsync().then(() => {
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) {
-          sound.unloadAsync();
-        }
+  Audio.Sound.createAsync(soundFile)
+    .then(({ sound }) => {
+      sound.playAsync().then(() => {
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
       });
-    });
-  }).catch(error => console.error("Error playing sound:", error));
+    })
+    .catch((error) => console.error("Error playing sound:", error));
 };
 
 import { db } from "../firebase";
@@ -89,13 +91,17 @@ export default function QuizScreen({ route, navigation }) {
     const rankingData = {
       name: studentName,
       score: currentScore,
-      accuracy: questions.length > 0 ? (currentScore / questions.length) * 100 : 0,
+      accuracy:
+        questions.length > 0 ? (currentScore / questions.length) * 100 : 0,
       correct: currentScore,
       totalTime: Date.now() - startTime,
       finishedAt: null,
+      characterId: selectedCharacter, // Add characterId here
     };
     const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
-    setDoc(rankingRef, rankingData).catch(error => console.error("Error updating ranking:", error));
+    setDoc(rankingRef, rankingData).catch((error) =>
+      console.error("Error updating ranking:", error)
+    );
   };
 
   // Update ranking whenever score changes
@@ -237,7 +243,8 @@ export default function QuizScreen({ route, navigation }) {
         setRankings(rankingsData);
 
         // Find current player's rank
-        const playerRank = rankingsData.findIndex((r) => r.id === studentId) + 1;
+        const playerRank =
+          rankingsData.findIndex((r) => r.id === studentId) + 1;
         setCurrentRank(playerRank > 0 ? playerRank : null);
       }
     );
@@ -272,12 +279,15 @@ export default function QuizScreen({ route, navigation }) {
         totalQuestions: questions.length,
         correctAnswers: finalScore,
         incorrectAnswers: questions.length - finalScore,
-        accuracy: questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
+        accuracy:
+          questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
         totalTime,
-        averageTimePerQuestion: questions.length > 0 ? totalTime / questions.length : 0,
+        averageTimePerQuestion:
+          questions.length > 0 ? totalTime / questions.length : 0,
         finishedAt: endTime,
         questionResults: questionResultsRef.current,
         level: sessionData.level,
+        characterId: selectedCharacter, // IMPORTANT: Add characterId here
       };
 
       // Remove existing score for this student
@@ -296,10 +306,12 @@ export default function QuizScreen({ route, navigation }) {
       const rankingData = {
         name: studentName,
         score: finalScore,
-        accuracy: questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
+        accuracy:
+          questions.length > 0 ? (finalScore / questions.length) * 100 : 0,
         correct: finalScore,
         totalTime,
         finishedAt: endTime,
+        characterId: selectedCharacter, // IMPORTANT: Add characterId here too
       };
 
       const rankingRef = doc(db, "sessions", sessionId, "rankings", studentId);
@@ -391,7 +403,13 @@ export default function QuizScreen({ route, navigation }) {
   }, [sessionId]);
 
   // Track question results
-  const recordQuestionResult = (questionId, question, isCorrect, timeTaken, userAnswer = "") => {
+  const recordQuestionResult = (
+    questionId,
+    question,
+    isCorrect,
+    timeTaken,
+    userAnswer = ""
+  ) => {
     const result = {
       questionId,
       question,
@@ -425,12 +443,14 @@ export default function QuizScreen({ route, navigation }) {
       );
 
       if (isCorrect) {
-        const randomSound = correctSounds[Math.floor(Math.random() * correctSounds.length)];
+        const randomSound =
+          correctSounds[Math.floor(Math.random() * correctSounds.length)];
         playSound(randomSound);
         setScore((prev) => prev + 1);
         setShowCheck(true);
       } else {
-        const randomSound = wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
+        const randomSound =
+          wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
         playSound(randomSound);
         setShowWrong(true);
       }
@@ -520,12 +540,14 @@ export default function QuizScreen({ route, navigation }) {
         );
 
         if (isCorrect) {
-          const randomSound = correctSounds[Math.floor(Math.random() * correctSounds.length)];
+          const randomSound =
+            correctSounds[Math.floor(Math.random() * correctSounds.length)];
           playSound(randomSound);
           setScore((prev) => prev + 1);
           setShowCheck(true);
         } else {
-          const randomSound = wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
+          const randomSound =
+            wrongSounds[Math.floor(Math.random() * wrongSounds.length)];
           playSound(randomSound);
           setShowWrong(true);
         }

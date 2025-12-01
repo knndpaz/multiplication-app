@@ -14,7 +14,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  collection,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import { useMusic } from "../MusicContext";
 
 const yeeeySound = require("../assets/Voice Records/Yeeey! .m4a");
@@ -30,6 +36,14 @@ const playSound = async (soundFile) => {
 };
 
 const { width, height } = Dimensions.get("window");
+
+// Character images mapping
+const characterImages = {
+  0: require("../assets/player1.png"), // Mia
+  1: require("../assets/player2.png"), // Leo
+  2: require("../assets/player3.png"), // Lily
+  3: require("../assets/player4.png"), // Nico
+};
 
 export default function RankingScreen({ route, navigation }) {
   const { sessionId, studentId } = route.params;
@@ -115,7 +129,11 @@ export default function RankingScreen({ route, navigation }) {
     }
 
     const rankingsRef = collection(db, "sessions", sessionId, "rankings");
-    const q = query(rankingsRef, orderBy("score", "desc"), orderBy("finishedAt", "asc"));
+    const q = query(
+      rankingsRef,
+      orderBy("score", "desc"),
+      orderBy("finishedAt", "asc")
+    );
 
     const unsub = onSnapshot(
       q,
@@ -148,34 +166,6 @@ export default function RankingScreen({ route, navigation }) {
       studentData: currentStudentData,
       allScores: scores,
     });
-  };
-
-  // Music toggling handled by MusicContext
-
-  const getMedalEmoji = (index) => {
-    switch (index) {
-      case 0:
-        return "🥇";
-      case 1:
-        return "🥈";
-      case 2:
-        return "🥉";
-      default:
-        return "🏅";
-    }
-  };
-
-  const getRankColor = (index) => {
-    switch (index) {
-      case 0:
-        return ["#FFD700", "#FFA500"]; // Gold
-      case 1:
-        return ["#C0C0C0", "#A8A8A8"]; // Silver
-      case 2:
-        return ["#CD7F32", "#B87333"]; // Bronze
-      default:
-        return ["#667eea", "#764ba2"]; // Purple
-    }
   };
 
   if (!fontsLoaded) {
@@ -254,7 +244,6 @@ export default function RankingScreen({ route, navigation }) {
           <Text style={styles.musicIcon}>{isMusicOn ? "🎵" : "🔇"}</Text>
         </LinearGradient>
       </TouchableOpacity>
-
 
       {/* Header */}
       <Animated.View
@@ -389,8 +378,11 @@ function PodiumCard({ rank, index, delay }) {
     ["#CD7F32", "#B87333"], // Bronze
   ];
 
-  const heights = [120, 90, 70];
-  const order = [1, 0, 2]; // Display order: 2nd, 1st, 3rd
+  const heights = [140, 110, 90];
+
+  // Get character image if characterId exists
+  const characterImage =
+    rank.characterId !== undefined ? characterImages[rank.characterId] : null;
 
   return (
     <Animated.View
@@ -411,6 +403,18 @@ function PodiumCard({ rank, index, delay }) {
         style={[styles.podiumBox, { height: heights[index] }]}
       >
         <Text style={styles.podiumMedal}>{getMedalEmoji(index)}</Text>
+
+        {/* Character Image */}
+        {characterImage && (
+          <View style={styles.podiumCharacterContainer}>
+            <Image
+              source={characterImage}
+              style={styles.podiumCharacterImage}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+
         <Text style={styles.podiumName} numberOfLines={1}>
           {rank.name}
         </Text>
@@ -470,6 +474,10 @@ function RankCard({ rank, index, isCurrentStudent, delay }) {
     }
   };
 
+  // Get character image if characterId exists
+  const characterImage =
+    rank.characterId !== undefined ? characterImages[rank.characterId] : null;
+
   return (
     <Animated.View
       style={[
@@ -491,6 +499,18 @@ function RankCard({ rank, index, isCurrentStudent, delay }) {
               <Text style={styles.rankNumber}>{index + 1}</Text>
             </View>
             <Text style={styles.rankMedal}>{getMedalEmoji(index)}</Text>
+
+            {/* Character Image */}
+            {characterImage && (
+              <View style={styles.characterImageContainer}>
+                <Image
+                  source={characterImage}
+                  style={styles.characterImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+
             <Text
               style={[
                 styles.rankName,
@@ -551,34 +571,6 @@ const styles = StyleSheet.create({
   },
   musicIcon: {
     fontSize: 36,
-  },
-  backButton: {
-    position: "absolute",
-    top: 24,
-    left: 24,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    zIndex: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: "#fff",
-  },
-  backButtonGradient: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 35,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backIcon: {
-    fontSize: 40,
-    color: "#fff",
-    fontWeight: "bold",
   },
   headerContainer: {
     alignItems: "center",
@@ -641,8 +633,23 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   podiumMedal: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  podiumCharacterContainer: {
+    width: 50,
+    height: 50,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  podiumCharacterImage: {
+    width: 40,
+    height: 40,
   },
   podiumName: {
     color: "#fff",
@@ -657,7 +664,7 @@ const styles = StyleSheet.create({
   },
   podiumScore: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "BernerBasisschrift1",
     fontWeight: "900",
     textShadowColor: "rgba(0, 0, 0, 0.3)",
@@ -721,6 +728,21 @@ const styles = StyleSheet.create({
   rankMedal: {
     fontSize: 28,
     marginRight: 12,
+  },
+  characterImageContainer: {
+    width: 44,
+    height: 44,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  characterImage: {
+    width: 36,
+    height: 36,
   },
   rankName: {
     flex: 1,
