@@ -124,16 +124,25 @@ function Students({ user, onLogout }) {
       );
     }
     setShowModal(false);
-    const snap = await getDocs(collection(db, "students", user.uid, "list"));
+    // Fetch all students from all teachers
+    const snap = await getDocs(collectionGroup(db, "list"));
     const arr = [];
-    snap.forEach((doc) => arr.push({ ...doc.data(), id: doc.id }));
+    snap.forEach((doc) => {
+      const path = doc.ref.path;
+      const parts = path.split("/");
+      const userId = parts[1];
+      arr.push({ ...doc.data(), id: doc.id, userId });
+    });
     setStudents(arr);
   }
 
   async function handleDeleteStudent(id) {
     if (!window.confirm("Are you sure you want to delete this student?"))
       return;
-    await deleteDoc(doc(db, "students", user.uid, "list", id));
+    // Find the student to get their userId
+    const student = students.find((s) => s.id === id);
+    if (!student) return;
+    await deleteDoc(doc(db, "students", student.userId, "list", id));
     setStudents(students.filter((s) => s.id !== id));
   }
 
@@ -147,9 +156,15 @@ function Students({ user, onLogout }) {
       setShowDuplicateModal(false);
       setShowModal(false);
 
-      const snap = await getDocs(collection(db, "students", user.uid, "list"));
+      // Fetch all students from all teachers
+      const snap = await getDocs(collectionGroup(db, "list"));
       const arr = [];
-      snap.forEach((doc) => arr.push({ ...doc.data(), id: doc.id }));
+      snap.forEach((doc) => {
+        const path = doc.ref.path;
+        const parts = path.split("/");
+        const userId = parts[1];
+        arr.push({ ...doc.data(), id: doc.id, userId });
+      });
       setStudents(arr);
     } catch (err) {
       console.error("Error adding student:", err);
