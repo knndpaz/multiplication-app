@@ -67,6 +67,7 @@ const quizPlayers = [
 
 export default function QuizScreen({ route, navigation }) {
   const { sessionId, studentId, studentName, selectedCharacter } = route.params;
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -622,7 +623,7 @@ export default function QuizScreen({ route, navigation }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [height, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -632,7 +633,7 @@ export default function QuizScreen({ route, navigation }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
