@@ -619,8 +619,8 @@ const styles = StyleSheet.create({
     margin: 10,
   },
   characterBox: {
-    width: width > 600 ? 180 : 150,
-    height: width > 600 ? 220 : 190,
+    width: SCREEN_WIDTH > 600 ? 180 : 150,
+    height: SCREEN_WIDTH > 600 ? 220 : 190,
     borderRadius: 30,
     backgroundColor: "rgba(255, 255, 255, 0.9)",
     alignItems: "center",
@@ -656,8 +656,8 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   characterImg: {
-    width: width > 600 ? 140 : 120,
-    height: width > 600 ? 140 : 120,
+    width: SCREEN_WIDTH > 600 ? 140 : 120,
+    height: SCREEN_WIDTH > 600 ? 140 : 120,
     marginTop: 10,
   },
   nameBadge: {

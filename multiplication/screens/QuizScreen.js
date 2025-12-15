@@ -1135,8 +1135,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   feedbackImg: {
-    width: width * 0.6,
-    height: width * 0.6,
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.6,
     marginBottom: 20,
   },
   feedbackText: {
