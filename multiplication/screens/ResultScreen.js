@@ -170,7 +170,9 @@ export default function ResultScreen({ route, navigation }) {
       });
 
       // Find this student's score data
-      const studentScore = sessionData.scores?.find((s) => s.studentId === studentId);
+      const studentScore = sessionData.scores?.find(
+        (s) => s.studentId === studentId
+      );
 
       // Build results based on the authoritative `questions` list fetched from Firestore.
       // If the session includes an explicit question order (from the web UI), honor it.
@@ -195,7 +197,9 @@ export default function ResultScreen({ route, navigation }) {
         for (const key of possibleOrderKeys) {
           const arr = sessionData?.[key];
           if (Array.isArray(arr) && arr.length > 0) {
-            const built = arr.map((id) => questionsById.get(id)).filter(Boolean);
+            const built = arr
+              .map((id) => questionsById.get(id))
+              .filter(Boolean);
             // include any remaining questions not listed in the order at the end
             const remaining = questions.filter((q) => !built.includes(q));
             orderedQuestions = [...built, ...remaining];
@@ -224,15 +228,21 @@ export default function ResultScreen({ route, navigation }) {
 
           // Matching strategies: by id, then by exact question text
           // (index-based matching removed to prevent incorrect cross-matching)
-          const saved = savedMap.get(question.id) || savedMap.get(questionText) || null;
+          const saved =
+            savedMap.get(question.id) || savedMap.get(questionText) || null;
 
           const isCorrect = saved?.isCorrect ?? false;
-          const userAnswer = saved?.userAnswer ?? (saved ? (saved.isCorrect ? answer : "Incorrect") : "No Answer");
+          const userAnswer =
+            saved?.userAnswer ??
+            (saved ? (saved.isCorrect ? answer : "Incorrect") : "No Answer");
 
           // Use the original question text for display when num1/num2 are not provided
-          const displayQuestion = questionText.includes("×") || questionText.match(/(\d+)\s*[xX]\s*(\d+)/)
-            ? questionText
-            : questionText || `${question.num1 || ""} × ${question.num2 || ""} = ?`;
+          const displayQuestion =
+            questionText.includes("×") ||
+            questionText.match(/(\d+)\s*[xX]\s*(\d+)/)
+              ? questionText
+              : questionText ||
+                `${question.num1 || ""} × ${question.num2 || ""} = ?`;
 
           results.push({
             question: displayQuestion,
@@ -243,16 +253,34 @@ export default function ResultScreen({ route, navigation }) {
         });
 
         // Debug: log counts to help diagnose mismatches
-        console.log("[ResultScreen] fetched questions:", questions.length, "orderedQuestions:", orderedQuestions.length, "saved results:", (studentScore && studentScore.questionResults) ? studentScore.questionResults.length : 0, "built results:", results.length);
+        console.log(
+          "[ResultScreen] fetched questions:",
+          questions.length,
+          "orderedQuestions:",
+          orderedQuestions.length,
+          "saved results:",
+          studentScore && studentScore.questionResults
+            ? studentScore.questionResults.length
+            : 0,
+          "built results:",
+          results.length
+        );
 
         setQuestionResults(results);
       } else {
         // No questions available, but if there's a studentScore with counts, try to build a reasonable fallback
-        if (studentScore && Array.isArray(studentScore.questionResults) && studentScore.questionResults.length > 0) {
+        if (
+          studentScore &&
+          Array.isArray(studentScore.questionResults) &&
+          studentScore.questionResults.length > 0
+        ) {
           const results = studentScore.questionResults.map((result) => {
             return {
               question: result.question || "",
-              userAnswer: result.userAnswer || (result.isCorrect ? result.correctAnswer : "Incorrect") || "No Answer",
+              userAnswer:
+                result.userAnswer ||
+                (result.isCorrect ? result.correctAnswer : "Incorrect") ||
+                "No Answer",
               correctAnswer: result.correctAnswer || "",
               isCorrect: !!result.isCorrect,
             };
@@ -926,6 +954,9 @@ const styles = StyleSheet.create({
   statIcon: {
     fontSize: 36,
     marginBottom: 12,
+    textShadowColor: "#fff",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 7,
   },
   statNumber: {
     fontSize: 32,
@@ -1091,6 +1122,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
+    textShadowColor: "#fff",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2,
   },
   problemContent: {
     flex: 1,

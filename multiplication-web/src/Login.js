@@ -120,18 +120,7 @@ function Login({ onLogin }) {
                 {error}
               </div>
             )}
-            <div className="login-signup">
-              Don't have an account?{" "}
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate("/signup");
-                }}
-              >
-                Sign Up
-              </a>
-            </div>
+
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? (
                 <>
