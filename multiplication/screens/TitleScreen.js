@@ -8,16 +8,21 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
 export default function TitleScreen({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isPlayHovered, setIsPlayHovered] = useState(false);
   const [floatingElements] = useState(() =>
-    Array.from({ length: 20 }, (_, i) => ({
+    Array.from({ length: 15 }, (_, i) => ({
       id: i,
       symbol: ["➕", "➖", "✖️", "➗", "🌟", "⭐", "💫", "✨", "🎯", "🎮"][
         Math.floor(Math.random() * 10)
@@ -26,7 +31,7 @@ export default function TitleScreen({ navigation, route }) {
       left: Math.random() * 100,
       duration: 12000 + Math.random() * 8000,
       delay: Math.random() * 5000,
-      size: 25 + Math.random() * 25,
+      size: 20 + Math.random() * 20,
     }))
   );
 
@@ -61,8 +66,6 @@ export default function TitleScreen({ navigation, route }) {
 
     playAudio();
   }, []);
-
-
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -223,8 +226,6 @@ export default function TitleScreen({ navigation, route }) {
     });
   };
 
-
-
   const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "5deg"],
@@ -273,7 +274,7 @@ export default function TitleScreen({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [800, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -283,7 +284,7 @@ export default function TitleScreen({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -293,15 +294,13 @@ export default function TitleScreen({ navigation, route }) {
         );
       })}
 
-
-
       {/* Content */}
       <View style={styles.content}>
         {/* Logo with Animation */}
         <TouchableOpacity
           onPress={handleLogoPress}
           activeOpacity={0.9}
-          style={styles.logoContainer}
+          style={[styles.logoContainer, { marginTop: -height * 0.05 }]}
         >
           <Animated.View
             style={{
@@ -310,14 +309,24 @@ export default function TitleScreen({ navigation, route }) {
           >
             <Image
               source={require("../assets/title.png")}
-              style={styles.logo}
+              style={[
+                styles.logo,
+                {
+                  width: Math.min(width * 0.85, 600),
+                  height: Math.min(width * 0.45, 300),
+                },
+              ]}
               resizeMode="contain"
             />
           </Animated.View>
         </TouchableOpacity>
 
         {/* Subtitle */}
-        <Text style={styles.subtitle}>Let's learn math and play! ✨🎮</Text>
+        <Text
+          style={[styles.subtitle, { fontSize: Math.min(width * 0.07, 32) }]}
+        >
+          Let's learn math and play! ✨🎮
+        </Text>
 
         {/* Play Button */}
         <Animated.View
@@ -339,18 +348,45 @@ export default function TitleScreen({ navigation, route }) {
               colors={["#f97316", "#facc15"]}
               start={{ x: 0, y: 1 }}
               end={{ x: 0, y: 0 }}
-              style={styles.playButtonGradient}
+              style={[
+                styles.playButtonGradient,
+                {
+                  paddingHorizontal: Math.min(width * 0.1, 40),
+                  paddingVertical: Math.min(height * 0.025, 18),
+                },
+              ]}
             >
               {/* YouTube-style Play Icon */}
               <Animated.View
                 style={[
                   styles.playIconCircle,
+                  {
+                    width: Math.min(width * 0.12, 50),
+                    height: Math.min(width * 0.12, 50),
+                    borderRadius: Math.min(width * 0.06, 25),
+                  },
                   { transform: [{ scale: playIconScale }] },
                 ]}
               >
-                <View style={styles.playTriangle} />
+                <View
+                  style={[
+                    styles.playTriangle,
+                    {
+                      borderLeftWidth: Math.min(width * 0.04, 18),
+                      borderBottomWidth: Math.min(width * 0.025, 12),
+                      borderTopWidth: Math.min(width * 0.025, 12),
+                    },
+                  ]}
+                />
               </Animated.View>
-              <Text style={styles.playText}>PLAY</Text>
+              <Text
+                style={[
+                  styles.playText,
+                  { fontSize: Math.min(width * 0.09, 38) },
+                ]}
+              >
+                PLAY
+              </Text>
             </LinearGradient>
             {/* Glow effect */}
             {isPlayHovered && <View style={styles.glowEffect} />}
@@ -365,12 +401,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
+    paddingHorizontal: 16,
   },
   floatingSymbol: {
     position: "absolute",
@@ -379,8 +417,7 @@ const styles = StyleSheet.create({
   },
 
   logoContainer: {
-    marginTop: -50,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logo: {
     width: 600,
@@ -392,15 +429,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontFamily: "BernerBasisschrift1",
     textAlign: "center",
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
     textShadowColor: "rgba(0, 0, 0, 0.5)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   playButton: {
-    marginTop: 16,
+    marginTop: 12,
     borderRadius: 60,
     overflow: "hidden",
     shadowColor: "#f97316",
@@ -427,7 +464,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

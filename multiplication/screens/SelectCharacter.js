@@ -9,6 +9,7 @@ import {
   Easing,
   Dimensions,
   AppState,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
@@ -17,7 +18,7 @@ import { db } from "../firebase";
 import { doc, updateDoc, arrayRemove } from "firebase/firestore";
 import { useMusic } from "../MusicContext";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const characters = [
   { id: 0, src: require("../assets/player1.png"), name: "Mia" },
@@ -27,6 +28,7 @@ const characters = [
 ];
 
 export default function SelectCharacter({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [selected, setSelected] = useState(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   // Ref to hold the selection-screen audio so we can cleanup correctly
@@ -349,7 +351,7 @@ export default function SelectCharacter({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [800, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -359,7 +361,7 @@ export default function SelectCharacter({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -511,6 +513,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   floatingSymbol: {
     position: "absolute",

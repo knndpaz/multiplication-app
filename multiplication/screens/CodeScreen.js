@@ -12,6 +12,8 @@ import {
   Keyboard,
   AppState,
   Linking,
+  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
@@ -29,7 +31,10 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
 export default function CodeScreen({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -96,7 +101,10 @@ export default function CodeScreen({ navigation, route }) {
         // avoid playing the audio.
         if (session && session.trim()) {
           try {
-            const q = query(collection(db, "sessions"), where("code", "==", session.trim()));
+            const q = query(
+              collection(db, "sessions"),
+              where("code", "==", session.trim())
+            );
             const snap = await getDocs(q);
             if (!snap.empty) {
               const sdata = snap.docs[0].data();
@@ -133,7 +141,10 @@ export default function CodeScreen({ navigation, route }) {
         }
       } catch (error) {
         // don't spam console — provide a concise message
-        console.error("Could not load session code audio:", error?.message || error);
+        console.error(
+          "Could not load session code audio:",
+          error?.message || error
+        );
       }
     };
 
@@ -159,8 +170,8 @@ export default function CodeScreen({ navigation, route }) {
 
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
         if (joinedPlayerId && joinedSessionId) {
           const removePlayer = async () => {
             try {
@@ -169,7 +180,9 @@ export default function CodeScreen({ navigation, route }) {
                 players: arrayRemove(joinedPlayerId),
                 readyPlayers: arrayRemove(joinedPlayerId),
               });
-              console.log("Player removed from session due to app close/background");
+              console.log(
+                "Player removed from session due to app close/background"
+              );
             } catch (error) {
               console.error("Error removing player from session:", error);
             }
@@ -186,13 +199,15 @@ export default function CodeScreen({ navigation, route }) {
 
   // Handle browser tab close and visibility changes for web version
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       const handleVisibilityChange = () => {
         if (document.hidden && joinedPlayerId && joinedSessionId) {
           updateDoc(doc(db, "sessions", joinedSessionId), {
             players: arrayRemove(joinedPlayerId),
             readyPlayers: arrayRemove(joinedPlayerId),
-          }).catch(error => console.error("Error removing player on visibility change:", error));
+          }).catch((error) =>
+            console.error("Error removing player on visibility change:", error)
+          );
         }
       };
 
@@ -202,21 +217,24 @@ export default function CodeScreen({ navigation, route }) {
           updateDoc(doc(db, "sessions", joinedSessionId), {
             players: arrayRemove(joinedPlayerId),
             readyPlayers: arrayRemove(joinedPlayerId),
-          }).catch(error => console.error("Error removing player on tab close:", error));
+          }).catch((error) =>
+            console.error("Error removing player on tab close:", error)
+          );
         }
       };
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
   }, [joinedPlayerId, joinedSessionId]);
-
-
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -333,7 +351,9 @@ export default function CodeScreen({ navigation, route }) {
       // Prevent late joins if the teacher has already started the game
       if (sessionData.gameStarted === true) {
         if (!isAutoJoin) {
-          setJoinError("This session has already started. Late joiners are not allowed.");
+          setJoinError(
+            "This session has already started. Late joiners are not allowed."
+          );
           shakeInput();
         }
         setIsJoining(false);
@@ -359,12 +379,12 @@ export default function CodeScreen({ navigation, route }) {
       if (isAutoJoin) {
         // For auto-join, navigate immediately without animation
         navigation.navigate("SelectCharacter", {
-            sessionId: sessionDoc.id,
-            level: sessionData.level,
-            playerId,
-            code: codeInput.trim(),
-            skipPassword: skipPasswordToPass,
-          });
+          sessionId: sessionDoc.id,
+          level: sessionData.level,
+          playerId,
+          code: codeInput.trim(),
+          skipPassword: skipPasswordToPass,
+        });
       } else {
         // Success animation for manual join
         Animated.spring(inputScale, {
@@ -373,12 +393,12 @@ export default function CodeScreen({ navigation, route }) {
           useNativeDriver: true,
         }).start(() => {
           navigation.navigate("SelectCharacter", {
-              sessionId: sessionDoc.id,
-              level: sessionData.level,
-              playerId,
-              code: codeInput.trim(),
-              skipPassword: skipPasswordToPass,
-            });
+            sessionId: sessionDoc.id,
+            level: sessionData.level,
+            playerId,
+            code: codeInput.trim(),
+            skipPassword: skipPasswordToPass,
+          });
         });
       }
     } catch (error) {
@@ -475,7 +495,7 @@ export default function CodeScreen({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [800, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -485,7 +505,7 @@ export default function CodeScreen({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -519,7 +539,9 @@ export default function CodeScreen({ navigation, route }) {
             updateDoc(doc(db, "sessions", joinedSessionId), {
               players: arrayRemove(joinedPlayerId),
               readyPlayers: arrayRemove(joinedPlayerId),
-            }).catch(error => console.error("Error removing player on back:", error));
+            }).catch((error) =>
+              console.error("Error removing player on back:", error)
+            );
           }
           navigation.goBack();
         }}
@@ -541,13 +563,26 @@ export default function CodeScreen({ navigation, route }) {
         <Animated.View style={{ transform: [{ scale: logoScale }] }}>
           <Image
             source={require("../assets/title.png")}
-            style={styles.logo}
+            style={[
+              styles.logo,
+              {
+                width: Math.min(width * 0.85, 500),
+                height: Math.min(width * 0.42, 250),
+              },
+            ]}
             resizeMode="contain"
           />
         </Animated.View>
 
         {/* Instruction Text */}
-        <Text style={styles.instructionText}>Enter Session Code</Text>
+        <Text
+          style={[
+            styles.instructionText,
+            { fontSize: Math.min(width * 0.07, 28) },
+          ]}
+        >
+          Enter Session Code
+        </Text>
 
         {/* Code Input with Animation */}
         <Animated.View
@@ -563,7 +598,14 @@ export default function CodeScreen({ navigation, route }) {
             }}
             placeholder="000000"
             placeholderTextColor="#9ca3af"
-            style={styles.codeInput}
+            style={[
+              styles.codeInput,
+              {
+                width: Math.min(width * 0.7, 280),
+                height: Math.min(height * 0.1, 80),
+                fontSize: Math.min(width * 0.09, 36),
+              },
+            ]}
             keyboardType="numeric"
             maxLength={6}
             autoCapitalize="none"
@@ -586,16 +628,45 @@ export default function CodeScreen({ navigation, route }) {
               }
               start={{ x: 0, y: 1 }}
               end={{ x: 0, y: 0 }}
-              style={styles.joinButtonGradient}
+              style={[
+                styles.joinButtonGradient,
+                {
+                  paddingHorizontal: Math.min(width * 0.1, 40),
+                  paddingVertical: Math.min(height * 0.022, 18),
+                },
+              ]}
             >
               {isJoining ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <View style={styles.joinIconCircle}>
-                    <Text style={styles.joinIconText}>✓</Text>
+                  <View
+                    style={[
+                      styles.joinIconCircle,
+                      {
+                        width: Math.min(width * 0.12, 50),
+                        height: Math.min(width * 0.12, 50),
+                        borderRadius: Math.min(width * 0.06, 25),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.joinIconText,
+                        { fontSize: Math.min(width * 0.075, 30) },
+                      ]}
+                    >
+                      ✓
+                    </Text>
                   </View>
-                  <Text style={styles.joinText}>JOIN</Text>
+                  <Text
+                    style={[
+                      styles.joinText,
+                      { fontSize: Math.min(width * 0.095, 38) },
+                    ]}
+                  >
+                    JOIN
+                  </Text>
                 </>
               )}
             </LinearGradient>
@@ -618,12 +689,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     zIndex: 10,
   },
   floatingSymbol: {

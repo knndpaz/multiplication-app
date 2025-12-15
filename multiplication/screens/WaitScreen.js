@@ -8,17 +8,26 @@ import {
   Easing,
   Dimensions,
   AppState,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { db } from "../firebase";
-import { doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, getDoc } from "firebase/firestore";
+import {
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  getDoc,
+} from "firebase/firestore";
 import { Alert } from "react-native";
 
-const { width, height } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function WaitScreen({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [spinValue] = useState(new Animated.Value(0));
   const [pulseValue] = useState(new Animated.Value(1));
@@ -80,8 +89,8 @@ export default function WaitScreen({ navigation, route }) {
 
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
         if (playerId && sessionId) {
           const removePlayer = async () => {
             try {
@@ -91,7 +100,9 @@ export default function WaitScreen({ navigation, route }) {
                 waitingPlayers: arrayRemove(playerData),
                 readyPlayers: arrayRemove(playerId),
               });
-              console.log("Player removed from session due to app close/background");
+              console.log(
+                "Player removed from session due to app close/background"
+              );
             } catch (error) {
               console.error("Error removing player from session:", error);
             }
@@ -108,14 +119,16 @@ export default function WaitScreen({ navigation, route }) {
 
   // Handle browser tab close and visibility changes for web version
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       const handleVisibilityChange = () => {
         if (document.hidden && playerId && sessionId) {
           updateDoc(doc(db, "sessions", sessionId), {
             players: arrayRemove(playerId),
             waitingPlayers: arrayRemove(playerData),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on visibility change:", error));
+          }).catch((error) =>
+            console.error("Error removing player on visibility change:", error)
+          );
         }
       };
 
@@ -126,16 +139,21 @@ export default function WaitScreen({ navigation, route }) {
             players: arrayRemove(playerId),
             waitingPlayers: arrayRemove(playerData),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on tab close:", error));
+          }).catch((error) =>
+            console.error("Error removing player on tab close:", error)
+          );
         }
       };
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
   }, [playerId, sessionId, playerData]);
@@ -372,7 +390,7 @@ export default function WaitScreen({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [height, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -382,7 +400,7 @@ export default function WaitScreen({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -535,6 +553,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   contentContainer: {
     flex: 1,
