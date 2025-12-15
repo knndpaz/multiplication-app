@@ -19,7 +19,7 @@ import { useMusic } from "../MusicContext";
 const { width, height } = Dimensions.get("window");
 
 export default function ResultScreen({ route, navigation }) {
-  const { sessionId, studentId, studentData, allScores } = route.params;
+  const { sessionId, studentId, studentData, allScores, skipPassword = false } = route.params || {};
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questionResults, setQuestionResults] = useState([]);
   const [currentTip, setCurrentTip] = useState(null);
@@ -486,21 +486,23 @@ export default function ResultScreen({ route, navigation }) {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={["#667eea", "#764ba2"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.backButtonGradient}
+      {/* Back Button - hide for single-player (skipPassword) sessions */}
+      {!skipPassword && (
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
         >
-          <Text style={styles.backIcon}>←</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={["#667eea", "#764ba2"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.backButtonGradient}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       {/* Header */}
       <Animated.View

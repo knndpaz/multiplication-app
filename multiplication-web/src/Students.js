@@ -37,6 +37,7 @@ function Students({ user, onLogout }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -97,6 +98,20 @@ function Students({ user, onLogout }) {
       !studentForm.password
     )
       return;
+    // If adding a new student, check for duplicate first+last name (case-insensitive)
+    if (modalMode === "add") {
+      const exists = students.some((s) =>
+        (s.firstname || "").trim().toLowerCase() ===
+          (studentForm.firstname || "").trim().toLowerCase() &&
+        (s.lastname || "").trim().toLowerCase() ===
+          (studentForm.lastname || "").trim().toLowerCase()
+      );
+      if (exists) {
+        // show custom confirmation modal instead of browser confirm
+        setShowDuplicateModal(true);
+        return; // wait for explicit confirmation
+      }
+    }
     if (modalMode === "add") {
       await addDoc(collection(db, "students", user.uid, "list"), {
         ...studentForm,
@@ -109,17 +124,56 @@ function Students({ user, onLogout }) {
       );
     }
     setShowModal(false);
-    const snap = await getDocs(collection(db, "students", user.uid, "list"));
+    // Fetch all students from all teachers
+    const snap = await getDocs(collectionGroup(db, "list"));
     const arr = [];
-    snap.forEach((doc) => arr.push({ ...doc.data(), id: doc.id }));
+    snap.forEach((doc) => {
+      const path = doc.ref.path;
+      const parts = path.split("/");
+      const userId = parts[1];
+      arr.push({ ...doc.data(), id: doc.id, userId });
+    });
     setStudents(arr);
   }
 
   async function handleDeleteStudent(id) {
     if (!window.confirm("Are you sure you want to delete this student?"))
       return;
-    await deleteDoc(doc(db, "students", user.uid, "list", id));
+    // Find the student to get their userId
+    const student = students.find((s) => s.id === id);
+    if (!student) return;
+    await deleteDoc(doc(db, "students", student.userId, "list", id));
     setStudents(students.filter((s) => s.id !== id));
+  }
+
+  async function confirmAddStudent() {
+    // perform the add that was deferred due to duplicate warning
+    try {
+      await addDoc(collection(db, "students", user.uid, "list"), {
+        ...studentForm,
+        createdAt: new Date().toISOString(),
+      });
+      setShowDuplicateModal(false);
+      setShowModal(false);
+
+      // Fetch all students from all teachers
+      const snap = await getDocs(collectionGroup(db, "list"));
+      const arr = [];
+      snap.forEach((doc) => {
+        const path = doc.ref.path;
+        const parts = path.split("/");
+        const userId = parts[1];
+        arr.push({ ...doc.data(), id: doc.id, userId });
+      });
+      setStudents(arr);
+    } catch (err) {
+      console.error("Error adding student:", err);
+      setShowDuplicateModal(false);
+    }
+  }
+
+  function cancelDuplicateAdd() {
+    setShowDuplicateModal(false);
   }
 
   function handleProfilePicChange(e) {
@@ -274,6 +328,8 @@ function Students({ user, onLogout }) {
                   {filteredStudents.length !== 1 ? "s" : ""}
                 </div>
               )}
+
+                {/* duplicate modal moved to render after the create/edit modal so it overlays correctly */}
             </div>
 
             <div className="students-table-container">
@@ -513,6 +569,42 @@ function Students({ user, onLogout }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showDuplicateModal && (
+        <div className="modal-overlay duplicate-overlay" style={{ zIndex: 2000 }} onClick={() => setShowDuplicateModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Duplicate Student</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowDuplicateModal(false)}
+              >
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>this student already exists, are you sure  you are gonna add them?</p>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={cancelDuplicateAdd}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn save-btn"
+                onClick={confirmAddStudent}
+              >
+                <span className="material-icons">add</span>
+                Add Anyway
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1022,6 +1114,10 @@ function Students({ user, onLogout }) {
           justify-content: center;
           z-index: 1000;
           padding: 20px;
+        }
+
+        .duplicate-overlay {
+          z-index: 2000;
         }
         
         .modal {

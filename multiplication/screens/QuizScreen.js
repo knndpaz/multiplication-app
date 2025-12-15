@@ -327,6 +327,7 @@ export default function QuizScreen({ route, navigation }) {
           studentId,
           studentData: playerResult,
           allScores: allScoresUpdated,
+          skipPassword: true,
         });
       } else {
         navigation.replace("RankingScreen", {
