@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Font from "expo-font";
@@ -16,10 +17,17 @@ import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { useMusic } from "../MusicContext";
 
-const { width, height } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function ResultScreen({ route, navigation }) {
-  const { sessionId, studentId, studentData, allScores, skipPassword = false } = route.params || {};
+  const {
+    sessionId,
+    studentId,
+    studentData,
+    allScores,
+    skipPassword = false,
+  } = route.params || {};
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questionResults, setQuestionResults] = useState([]);
   const [currentTip, setCurrentTip] = useState(null);
@@ -450,7 +458,7 @@ export default function ResultScreen({ route, navigation }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [height, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -460,7 +468,7 @@ export default function ResultScreen({ route, navigation }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -776,6 +784,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   floatingSymbol: {
     position: "absolute",
