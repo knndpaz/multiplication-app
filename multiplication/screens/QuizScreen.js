@@ -12,6 +12,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
@@ -55,7 +56,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
-const { width, height } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const quizPlayers = [
   require("../assets/player1.png"),
@@ -66,6 +67,7 @@ const quizPlayers = [
 
 export default function QuizScreen({ route, navigation }) {
   const { sessionId, studentId, studentName, selectedCharacter } = route.params;
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -621,7 +623,7 @@ export default function QuizScreen({ route, navigation }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [height, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -631,7 +633,7 @@ export default function QuizScreen({ route, navigation }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -835,6 +837,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   scrollContent: {
     flexGrow: 1,
@@ -1132,8 +1135,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   feedbackImg: {
-    width: width * 0.6,
-    height: width * 0.6,
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.6,
     marginBottom: 20,
   },
   feedbackText: {

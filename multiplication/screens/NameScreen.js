@@ -12,17 +12,28 @@ import {
   Dimensions,
   TextInput,
   AppState,
+  useWindowDimensions,
 } from "react-native";
 import { db } from "../firebase";
-import { collection, collectionGroup, getDocs, doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  arrayRemove,
+  arrayUnion,
+} from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as Font from "expo-font";
 import { useMusic } from "../MusicContext";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function NameScreen({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,8 +118,8 @@ export default function NameScreen({ navigation, route }) {
 
   // Handle app state changes to cleanup on app close/background
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
         if (playerId && sessionId) {
           const removePlayer = async () => {
             try {
@@ -117,7 +128,9 @@ export default function NameScreen({ navigation, route }) {
                 players: arrayRemove(playerId),
                 readyPlayers: arrayRemove(playerId),
               });
-              console.log("Player removed from session due to app close/background");
+              console.log(
+                "Player removed from session due to app close/background"
+              );
             } catch (error) {
               console.error("Error removing player from session:", error);
             }
@@ -134,13 +147,15 @@ export default function NameScreen({ navigation, route }) {
 
   // Handle browser tab close and visibility changes for web version
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       const handleVisibilityChange = () => {
         if (document.hidden && playerId && sessionId) {
           updateDoc(doc(db, "sessions", sessionId), {
             players: arrayRemove(playerId),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on visibility change:", error));
+          }).catch((error) =>
+            console.error("Error removing player on visibility change:", error)
+          );
         }
       };
 
@@ -150,16 +165,21 @@ export default function NameScreen({ navigation, route }) {
           updateDoc(doc(db, "sessions", sessionId), {
             players: arrayRemove(playerId),
             readyPlayers: arrayRemove(playerId),
-          }).catch(error => console.error("Error removing player on tab close:", error));
+          }).catch((error) =>
+            console.error("Error removing player on tab close:", error)
+          );
         }
       };
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
   }, [playerId, sessionId]);
@@ -202,7 +222,13 @@ export default function NameScreen({ navigation, route }) {
 
         const arr = [];
         snap.forEach((doc) => {
-          console.log("Student doc:", doc.id, doc.data(), "path:", doc.ref.path);
+          console.log(
+            "Student doc:",
+            doc.id,
+            doc.data(),
+            "path:",
+            doc.ref.path
+          );
           // include the full document path so we can guarantee a unique key for rendering
           arr.push({ ...doc.data(), id: doc.id, path: doc.ref.path });
         });
@@ -355,7 +381,7 @@ export default function NameScreen({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [800, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -365,7 +391,7 @@ export default function NameScreen({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -505,7 +531,11 @@ export default function NameScreen({ navigation, route }) {
           data={filteredStudents}
           contentContainerStyle={styles.nameList}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={<Text style={styles.countText}>{`Students loaded: ${students.length}`}</Text>}
+          ListHeaderComponent={
+            <Text
+              style={styles.countText}
+            >{`Students loaded: ${students.length}`}</Text>
+          }
           keyExtractor={(item) => item.path || item.id}
           renderItem={({ item, index }) => (
             <StudentCard
@@ -629,6 +659,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   floatingSymbol: {
     position: "absolute",

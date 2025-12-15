@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
@@ -20,9 +21,10 @@ import * as Font from "expo-font";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-const { width, height } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function PasswordScreen({ navigation, route }) {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,8 +46,16 @@ export default function PasswordScreen({ navigation, route }) {
   const buttonScale = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const { studentId, studentPath, sessionId, level, playerId, code, selectedCharacter, skipPassword } =
-    route.params || {};
+  const {
+    studentId,
+    studentPath,
+    sessionId,
+    level,
+    playerId,
+    code,
+    selectedCharacter,
+    skipPassword,
+  } = route.params || {};
 
   // Character images mapping
   const characterImages = [
@@ -289,7 +299,7 @@ export default function PasswordScreen({ navigation, route }) {
       {floatingElements.map((element) => {
         const translateY = element.animValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [height, -200],
+          outputRange: [height + 100, -100],
         });
 
         return (
@@ -299,7 +309,7 @@ export default function PasswordScreen({ navigation, route }) {
               styles.floatingSymbol,
               {
                 left: `${element.left}%`,
-                fontSize: element.size,
+                fontSize: Math.min(element.size, width * 0.06),
                 transform: [{ translateY }],
               },
             ]}
@@ -463,6 +473,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   scrollContent: {
     flexGrow: 1,
